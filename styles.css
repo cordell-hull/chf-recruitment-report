@@ -220,10 +220,12 @@ body {
   background-color: var(--color-success);
   border-color: var(--color-success);
   color: white;
+  font-size: 0;
 }
 
 .progress-step.completed .step-number::after {
   content: '✓';
+  font-size: var(--font-size-sm);
 }
 
 /* ========================================
@@ -394,116 +396,6 @@ textarea {
 @media (max-width: 600px) {
   .form-row {
     grid-template-columns: 1fr;
-  }
-}
-
-/* ========================================
-   Cost Grid (for utility/transport fields)
-   ======================================== */
-
-.cost-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-md);
-}
-
-@media (max-width: 600px) {
-  .cost-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ========================================
-   Cost Items (food items list)
-   ======================================== */
-
-.cost-items-container {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
-}
-
-.cost-item-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background-color: var(--color-bg-light);
-  border-radius: var(--radius-md);
-}
-
-.cost-item-row label {
-  flex: 1;
-  margin: 0;
-  font-weight: 400;
-  font-size: var(--font-size-sm);
-}
-
-.cost-item-row .input-with-prefix {
-  width: 120px;
-  flex-shrink: 0;
-}
-
-.cost-item-row .input-with-prefix input {
-  text-align: right;
-}
-
-.cost-item-row .btn-icon-only {
-  flex-shrink: 0;
-}
-
-.cost-item-row.custom .btn-remove-item {
-  color: var(--color-error);
-}
-
-.add-item-container {
-  display: flex;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-lg);
-}
-
-.add-item-container input {
-  flex: 1;
-}
-
-/* ========================================
-   Sports Events
-   ======================================== */
-
-.sports-container {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
-}
-
-.sport-entry {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background-color: var(--color-bg-light);
-  border-radius: var(--radius-md);
-}
-
-.sport-fields {
-  display: flex;
-  flex: 1;
-  gap: var(--spacing-sm);
-}
-
-.sport-fields input {
-  flex: 1;
-}
-
-.btn-remove-sport {
-  color: var(--color-error);
-}
-
-@media (max-width: 600px) {
-  .sport-fields {
-    flex-direction: column;
   }
 }
 

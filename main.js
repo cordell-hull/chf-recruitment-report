@@ -75,7 +75,25 @@ function _saveCurrentDraft() {
 
 function _restoreDraft(draft) {
   const d = draft.data;
-  Object.assign(report, d);
+  report.schoolName = d.schoolName || '';
+  report.date = d.date || report.date;
+  report.teacherFirstName = d.teacherFirstName || '';
+  report.teacherLastName = d.teacherLastName || '';
+  report.teacherEmail = d.teacherEmail || '';
+  report.interviewDates = d.interviewDates || '';
+  report.interviewPlace = d.interviewPlace || '';
+  report.interviewLength = d.interviewLength || '';
+  report.communicationDetails = d.communicationDetails || '';
+  report.references = d.references || report.references;
+  Object.assign(report.englishTest, d.englishTest || {});
+  for (const key of Object.keys(report.arrivalServices)) {
+    if (d.arrivalServices && d.arrivalServices[key]) {
+      Object.assign(report.arrivalServices[key], d.arrivalServices[key]);
+    }
+  }
+  Object.assign(report.certification, d.certification || {});
+  Object.assign(report.nativeEnglishSpeaker, d.nativeEnglishSpeaker || {});
+  Object.assign(report.signature, d.signature || {});
 
   // Restore general info
   document.getElementById('schoolName').value = report.schoolName;
@@ -184,6 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initToggles();
   initServiceToggles();
   initSignatureCanvas();
+  document.getElementById('generatePdfBtn').addEventListener('click', generateReport);
 
   // Report date is always today
   report.date = new Date().toISOString().split('T')[0];
@@ -529,6 +548,7 @@ function validateCurrentStep() {
   switch (currentStep) {
     case 1: return validateGeneral();
     case 2: return validateInterview();
+    case 5: return validateCertification();
     case 6: return validateSignature();
     default: return true;
   }
@@ -559,6 +579,15 @@ function validateInterview() {
   else clearError('referencesError');
 
   return valid;
+}
+
+function validateCertification() {
+  if (report.nativeEnglishSpeaker.applicable && !report.nativeEnglishSpeaker.justification) {
+    showError('justificationError', 'Justification is required when hiring a native English speaker.');
+    return false;
+  }
+  clearError('justificationError');
+  return true;
 }
 
 function validateSignature() {
@@ -645,7 +674,7 @@ function renderReview() {
       <h3>Certification</h3>
       ${report.certification.procedures ? `<div class="review-field"><span class="review-label">Procedures</span><span class="review-value multiline">${escapeHtml(report.certification.procedures)}</span></div>` : ''}
       ${report.certification.stepsToObtain ? `<div class="review-field"><span class="review-label">Steps</span><span class="review-value multiline">${escapeHtml(report.certification.stepsToObtain)}</span></div>` : ''}
-      <div class="review-field"><span class="review-label">Teacher cost</span><span class="review-value">${report.certification.teacherCost ? `Yes — ${escapeHtml(report.certification.costAmount)} (${report.certification.costTiming === 'advance' ? 'pay in advance' : 'pay after arrival'})` : 'No'}</span></div>
+      <div class="review-field"><span class="review-label">Teacher cost</span><span class="review-value">${report.certification.teacherCost ? `Yes — ${escapeHtml(report.certification.costAmount)} (${report.certification.costTiming === 'advance' ? 'pay in advance' : report.certification.costTiming === 'after_arrival' ? 'pay after arrival' : 'timing not specified'})` : 'No'}</span></div>
       ${report.nativeEnglishSpeaker.applicable ? `
         <h4 style="margin: 12px 0 8px; color: var(--color-primary-dark);">Native English Speaker Justification</h4>
         <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(report.nativeEnglishSpeaker.justification)}</p>
@@ -659,8 +688,6 @@ function renderReview() {
       <div class="review-field"><span class="review-label">Title</span><span class="review-value">${escapeHtml(report.signature.signerTitle)}</span></div>
     </div>
   `;
-
-  document.getElementById('generatePdfBtn').addEventListener('click', generateReport);
 }
 
 // ========================================

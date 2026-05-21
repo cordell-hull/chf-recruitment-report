@@ -403,12 +403,6 @@
           </button>
         </div>
 
-        <div class="progress-overlay" id="generatingOverlay" style="display: none;">
-          <div class="progress-modal">
-            <span class="spinner large"></span>
-            <p id="generatingStatus">Generating PDF...</p>
-          </div>
-        </div>
       </section>
     </main>
 
@@ -455,6 +449,14 @@
       </div>
     </div>
   </template>
+
+  <!-- Generating overlay -->
+  <div class="progress-overlay" id="generatingOverlay" style="display: none;">
+    <div class="progress-modal">
+      <span class="spinner large"></span>
+      <p id="generatingStatus">Generating PDF...</p>
+    </div>
+  </div>
 
   <!-- Draft restore modal -->
   <div class="progress-overlay" id="draftBanner" style="display: none;">
