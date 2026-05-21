@@ -79,7 +79,6 @@ function _restoreDraft(draft) {
 
   // Restore general info
   document.getElementById('schoolName').value = report.schoolName;
-  document.getElementById('reportDate').value = report.date;
   document.getElementById('teacherFirstName').value = report.teacherFirstName;
   document.getElementById('teacherLastName').value = report.teacherLastName;
   document.getElementById('teacherEmail').value = report.teacherEmail;
@@ -186,9 +185,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initServiceToggles();
   initSignatureCanvas();
 
-  // Set today's date as default
-  document.getElementById('reportDate').value = new Date().toISOString().split('T')[0];
-  report.date = document.getElementById('reportDate').value;
+  // Report date is always today
+  report.date = new Date().toISOString().split('T')[0];
 
   renderReferences();
 
@@ -211,10 +209,6 @@ function initSchoolNameListener() {
   const input = document.getElementById('schoolName');
   input.addEventListener('input', () => {
     report.schoolName = input.value.trim();
-    updateHeaderDisplay();
-  });
-  document.getElementById('reportDate').addEventListener('change', (e) => {
-    report.date = e.target.value;
     updateHeaderDisplay();
   });
 }
@@ -433,7 +427,6 @@ function restoreSignatureCanvas(dataUrl) {
 
 function syncFormToState() {
   report.schoolName = document.getElementById('schoolName').value.trim();
-  report.date = document.getElementById('reportDate').value;
   report.teacherFirstName = document.getElementById('teacherFirstName').value.trim();
   report.teacherLastName = document.getElementById('teacherLastName').value.trim();
   report.teacherEmail = document.getElementById('teacherEmail').value.trim();
@@ -544,7 +537,6 @@ function validateCurrentStep() {
 function validateGeneral() {
   let valid = true;
   if (!report.schoolName) { showError('schoolNameError', 'Required.'); valid = false; } else clearError('schoolNameError');
-  if (!report.date) { showError('dateError', 'Required.'); valid = false; } else clearError('dateError');
   if (!report.teacherFirstName) { showError('firstNameError', 'Required.'); valid = false; } else clearError('firstNameError');
   if (!report.teacherLastName) { showError('lastNameError', 'Required.'); valid = false; } else clearError('lastNameError');
   if (!report.teacherEmail) { showError('emailError', 'Required.'); valid = false; } else clearError('emailError');
