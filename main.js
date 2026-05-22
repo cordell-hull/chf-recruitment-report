@@ -14,6 +14,8 @@ const report = {
   teacherEmail: '',
   interviewDates: '',
   interviewPlace: '',
+  interviewCountry: '',
+  interviewPlatform: '',
   interviewLength: '',
   communicationDetails: '',
   references: [
@@ -82,6 +84,8 @@ function _restoreDraft(draft) {
   report.teacherEmail = d.teacherEmail || '';
   report.interviewDates = d.interviewDates || '';
   report.interviewPlace = d.interviewPlace || '';
+  report.interviewCountry = d.interviewCountry || '';
+  report.interviewPlatform = d.interviewPlatform || '';
   report.interviewLength = d.interviewLength || '';
   report.communicationDetails = d.communicationDetails || '';
   report.references = d.references || report.references;
@@ -104,6 +108,8 @@ function _restoreDraft(draft) {
   // Restore interview
   document.getElementById('interviewDates').value = report.interviewDates;
   document.getElementById('interviewPlace').value = report.interviewPlace;
+  document.getElementById('interviewCountry').value = report.interviewCountry;
+  document.getElementById('interviewPlatform').value = report.interviewPlatform;
   document.getElementById('interviewLength').value = report.interviewLength;
   document.getElementById('communicationDetails').value = report.communicationDetails;
 
@@ -452,6 +458,8 @@ function syncFormToState() {
 
   report.interviewDates = document.getElementById('interviewDates').value.trim();
   report.interviewPlace = document.getElementById('interviewPlace').value.trim();
+  report.interviewCountry = document.getElementById('interviewCountry').value.trim();
+  report.interviewPlatform = document.getElementById('interviewPlatform').value.trim();
   report.interviewLength = document.getElementById('interviewLength').value.trim();
   report.communicationDetails = document.getElementById('communicationDetails').value.trim();
 
@@ -567,6 +575,8 @@ function validateInterview() {
   let valid = true;
   if (!report.interviewDates) { showError('interviewDatesError', 'Required.'); valid = false; } else clearError('interviewDatesError');
   if (!report.interviewPlace) { showError('interviewPlaceError', 'Required.'); valid = false; } else clearError('interviewPlaceError');
+  if (!report.interviewCountry) { showError('interviewCountryError', 'Required.'); valid = false; } else clearError('interviewCountryError');
+  if (!report.interviewPlatform) { showError('interviewPlatformError', 'Required.'); valid = false; } else clearError('interviewPlatformError');
   if (!report.interviewLength) { showError('interviewLengthError', 'Required.'); valid = false; } else clearError('interviewLengthError');
   if (!report.communicationDetails) { showError('communicationError', 'Required.'); valid = false; } else clearError('communicationError');
 
@@ -644,7 +654,9 @@ function renderReview() {
     <div class="review-section">
       <h3>Interview & References</h3>
       <div class="review-field"><span class="review-label">Interview Date(s)</span><span class="review-value">${escapeHtml(report.interviewDates)}</span></div>
-      <div class="review-field"><span class="review-label">Place/Platform</span><span class="review-value">${escapeHtml(report.interviewPlace)}</span></div>
+      <div class="review-field"><span class="review-label">Place</span><span class="review-value">${escapeHtml(report.interviewPlace)}</span></div>
+      <div class="review-field"><span class="review-label">Country</span><span class="review-value">${escapeHtml(report.interviewCountry)}</span></div>
+      <div class="review-field"><span class="review-label">Platform</span><span class="review-value">${escapeHtml(report.interviewPlatform)}</span></div>
       <div class="review-field"><span class="review-label">Length</span><span class="review-value">${escapeHtml(report.interviewLength)}</span></div>
       <div class="review-field"><span class="review-label">Communication</span><span class="review-value multiline">${escapeHtml(report.communicationDetails)}</span></div>
       <h4 style="margin: 12px 0 8px; color: var(--color-primary-dark);">References</h4>
