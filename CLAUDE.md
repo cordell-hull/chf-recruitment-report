@@ -1,6 +1,6 @@
 # Recruiting Report
 
-Static web app (no build step) for host schools to document their J-1 teacher recruitment process. Runs entirely in the browser using ES modules and pdf-lib.
+Static web app (no build step) for host schools to document their J-1 teacher recruitment process. Runs entirely in the browser using ES modules and pdf-lib. Supports multiple teachers per report.
 
 ## Local Development
 
@@ -21,20 +21,28 @@ Version is defined in `config/version.js` as the single source of truth. It is d
 
 ## Key Files
 
-- `index.html` — Main page, 7-step wizard, reference template
-- `main.js` — Wizard logic, state management, validation, signature canvas, draft auto-save
-- `lib/pdf.js` — PDF generation with pdf-lib (text sections + signature image)
-- `lib/storage.js` — Generic localStorage draft module (shared across CHF forms)
+- `index.html` — Main page, 5-step wizard (School, Teachers, Services, Sign, Review)
+- `main.js` — Wizard logic, multi-teacher state, table/form view, validation, signature canvas, persistent storage
+- `lib/pdf.js` — PDF generation with pdf-lib (summary table + per-teacher sections + signature)
 - `config/org.js` — Organization branding, PDF styling constants
 - `config/version.js` — App version constant
-- `styles.css` — All styles including toggle switches and signature pad
+- `styles.css` — All styles including toggle switches, checkbox groups, teacher table, landing screen, and signature pad
 
-## Auto-save
+## Data Persistence
 
-Drafts are saved to `localStorage` every 30 seconds and on step transitions. On page load, a modal prompts the user to resume or discard. Drafts are cleared after successful PDF download. Signature canvas data is stored as a data URL.
+All report data is saved to `localStorage` under key `chf-recruitment-data` — on every step transition, teacher save, and every 30 seconds via auto-save. On page load, if saved data exists, a landing screen offers "Continue" or "Start New Report" (with confirmation). Data persists across sessions and PDF downloads — only cleared when user explicitly starts a new report. Signature canvas data is stored as a data URL.
+
+## Multi-Teacher Flow
+
+Step 2 (Teachers) uses a table/form toggle pattern:
+- **Table view** (default): lists all teachers with Edit/Delete buttons and an "Add Teacher" button
+- **Form view**: replaces the table when adding/editing a teacher; includes teacher info, interview details, communication venues (checkboxes), 2 references, and English assessment
+- Pre-populate: when adding teacher #2+, shared fields (place, country, venues) are copied from the previous teacher
 
 ## PDF Generation Notes
 
 - Uses standard Helvetica font (WinAnsi encoding) — text passed to `drawText()` must not contain control characters.
+- Summary table at top with teacher name, email, interview date, place.
+- Per-teacher sections with interview details, references, English assessment.
+- Shared sections (relocation, certification) and signature appear once at end.
 - Signature is embedded as a PNG image from canvas `toDataURL()`.
-- Numbered sections (1-9) match the original document structure.

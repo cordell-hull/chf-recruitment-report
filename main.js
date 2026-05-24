@@ -1,200 +1,246 @@
-import { generatePDF, generateFilename, downloadPDF } from './lib/pdf.js';
+import { generatePDF, generateFilename, downloadPDF, importReportFromPDF } from './lib/pdf.js';
 import { APP_VERSION } from './config/version.js';
-import { saveDraft, loadDraft, clearDraft } from './lib/storage.js';
+
+// ========================================
+// Constants
+// ========================================
+
+const TOTAL_STEPS = 5;
+const STORAGE_KEY = 'chf-recruitment-data';
+
+const VENUE_OPTIONS = [
+  { value: 'telephone', label: 'Telephone' },
+  { value: 'email', label: 'Email' },
+  { value: 'zoom', label: 'Zoom' },
+  { value: 'inPerson', label: 'In Person' },
+  { value: 'letter', label: 'Letter' },
+  { value: 'other', label: 'Other' }
+];
 
 // ========================================
 // Application State
 // ========================================
 
+function _emptyReference() {
+  return {
+    name: '', title: '', email: '',
+    interviewLength: '', interviewDate: '', interviewPlace: '', interviewCountry: '',
+    communicationVenues: [], communicationOther: ''
+  };
+}
+
+function _emptyTeacher() {
+  return {
+    firstName: '', lastName: '', email: '',
+    interviewDate: '', interviewPlace: '', interviewCountry: '', interviewLength: '',
+    communicationVenues: [], communicationOther: '',
+    references: [_emptyReference(), _emptyReference()],
+    isNativeEnglishSpeaker: false,
+    nativeTestedEnglish: false,
+    englishTestMinutes: ''
+  };
+}
+
 const report = {
-  schoolName: '',
   date: '',
-  teacherFirstName: '',
-  teacherLastName: '',
-  teacherEmail: '',
-  interviewDates: '',
-  interviewPlace: '',
-  interviewCountry: '',
-  interviewPlatform: '',
-  interviewLength: '',
-  communicationDetails: '',
-  references: [
-    { name: '', title: '', email: '', dateContacted: '', platform: '' },
-    { name: '', title: '', email: '', dateContacted: '', platform: '' }
-  ],
-  englishTest: {
-    verbalTested: false,
-    verbalDate: '',
-    verbalAssessment: '',
-    verbalByNativeSpeaker: false,
-    writtenTested: false,
-    writtenNotes: ''
-  },
-  arrivalServices: {
-    meetAtAirport:     { provided: false, details: '' },
-    hostFamily:        { provided: false, details: '' },
-    transientHotel:    { provided: false, details: '' },
-    rentalCar:         { provided: false, details: '' },
-    housingAssistance: { provided: false, details: '' },
-    socialSecurity:    { provided: false, details: '' }
-  },
-  certification: {
-    procedures: '',
-    stepsToObtain: '',
-    teacherCost: false,
-    costAmount: '',
-    costTiming: ''
-  },
-  nativeEnglishSpeaker: {
-    applicable: false,
-    justification: ''
-  },
-  signature: {
-    imageDataUrl: null,
-    signerName: '',
-    signerTitle: ''
-  }
+  schoolName: '',
+  schoolContactFirstName: '',
+  schoolContactLastName: '',
+  schoolContactEmail: '',
+  teachers: [],
+  relocationCompany: { name: '', email: '' },
+  certification: { link: '', costToTeacher: '' },
+  signature: { imageDataUrl: null, signerName: '', signerTitle: '' }
 };
 
 let currentStep = 1;
-const TOTAL_STEPS = 7;
-
-const DRAFT_KEY = 'chf-recruitment-report';
-const AUTOSAVE_INTERVAL_MS = 30000;
+let editingTeacherIndex = -1; // -1 = adding new, >=0 = editing existing
+let wasAddingNew = false; // tracks whether current form session started as "Add" vs "Edit"
 
 // ========================================
-// Draft Auto-save
+// Persistent Storage
 // ========================================
 
-function _buildDraftData() {
-  syncFormToState();
-  return JSON.parse(JSON.stringify(report));
+function _saveToStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(report));
+  } catch {}
 }
 
-function _saveCurrentDraft() {
-  saveDraft(DRAFT_KEY, _buildDraftData());
+function _loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    if (!saved || !saved.schoolName) return false;
+
+    report.date = saved.date || report.date;
+    report.schoolName = saved.schoolName || '';
+    report.schoolContactFirstName = saved.schoolContactFirstName || '';
+    report.schoolContactLastName = saved.schoolContactLastName || '';
+    report.schoolContactEmail = saved.schoolContactEmail || '';
+    report.teachers = saved.teachers || [];
+    report.relocationCompany = saved.relocationCompany || { name: '', email: '' };
+    report.certification = saved.certification || { link: '', costToTeacher: '' };
+    report.signature = saved.signature || { imageDataUrl: null, signerName: '', signerTitle: '' };
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-function _restoreDraft(draft) {
-  const d = draft.data;
-  report.schoolName = d.schoolName || '';
-  report.date = d.date || report.date;
-  report.teacherFirstName = d.teacherFirstName || '';
-  report.teacherLastName = d.teacherLastName || '';
-  report.teacherEmail = d.teacherEmail || '';
-  report.interviewDates = d.interviewDates || '';
-  report.interviewPlace = d.interviewPlace || '';
-  report.interviewCountry = d.interviewCountry || '';
-  report.interviewPlatform = d.interviewPlatform || '';
-  report.interviewLength = d.interviewLength || '';
-  report.communicationDetails = d.communicationDetails || '';
-  report.references = d.references || report.references;
-  Object.assign(report.englishTest, d.englishTest || {});
-  for (const key of Object.keys(report.arrivalServices)) {
-    if (d.arrivalServices && d.arrivalServices[key]) {
-      Object.assign(report.arrivalServices[key], d.arrivalServices[key]);
+function _clearStorage() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+}
+
+function _hasStoredData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    return !!(saved && saved.schoolName);
+  } catch {
+    return false;
+  }
+}
+
+// ========================================
+// Landing Screen
+// ========================================
+
+function initLanding() {
+  document.getElementById('continueBtn').addEventListener('click', _continueExisting);
+  document.getElementById('startNewBtn').addEventListener('click', _confirmStartNew);
+  document.getElementById('importPdfInput').addEventListener('change', _handleImport);
+
+  if (_hasStoredData()) {
+    _showLanding(true);
+  } else {
+    _showLanding(false);
+  }
+}
+
+function _showLanding(hasData) {
+  if (hasData) {
+    let saved;
+    try {
+      saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    } catch {
+      _showLanding(false);
+      return;
     }
+    if (!saved || !saved.schoolName) { _showLanding(false); return; }
+
+    document.getElementById('landingSchoolName').textContent = saved.schoolName;
+    const teacherCount = (saved.teachers || []).length;
+    document.getElementById('landingInfo').textContent =
+      `${teacherCount} teacher${teacherCount !== 1 ? 's' : ''} in this report`;
+    document.getElementById('continueBtn').style.display = '';
+    document.getElementById('startNewBtn').textContent = 'Start New Report';
+  } else {
+    document.getElementById('landingSchoolName').textContent = 'Recruiting Report';
+    document.getElementById('landingInfo').textContent = 'No saved report found.';
+    document.getElementById('continueBtn').style.display = 'none';
+    document.getElementById('startNewBtn').textContent = 'Start New Report';
   }
-  Object.assign(report.certification, d.certification || {});
-  Object.assign(report.nativeEnglishSpeaker, d.nativeEnglishSpeaker || {});
-  Object.assign(report.signature, d.signature || {});
 
-  // Restore general info
-  document.getElementById('schoolName').value = report.schoolName;
-  document.getElementById('teacherFirstName').value = report.teacherFirstName;
-  document.getElementById('teacherLastName').value = report.teacherLastName;
-  document.getElementById('teacherEmail').value = report.teacherEmail;
+  document.getElementById('landingScreen').style.display = 'flex';
+  document.getElementById('wizardProgress').style.display = 'none';
+  document.getElementById('wizardContent').style.display = 'none';
+  document.getElementById('wizardNavigation').style.display = 'none';
+}
 
-  // Restore interview
-  document.getElementById('interviewDates').value = report.interviewDates;
-  document.getElementById('interviewPlace').value = report.interviewPlace;
-  document.getElementById('interviewCountry').value = report.interviewCountry;
-  document.getElementById('interviewPlatform').value = report.interviewPlatform;
-  document.getElementById('interviewLength').value = report.interviewLength;
-  document.getElementById('communicationDetails').value = report.communicationDetails;
+function _continueExisting() {
+  _loadFromStorage();
+  _restoreAllFields();
+  _showWizard();
+}
 
-  // Restore references
-  renderReferences();
+function _confirmStartNew() {
+  if (_hasStoredData()) {
+    if (!confirm('This will delete all saved data for the current report. Are you sure?')) return;
+    _clearStorage();
+  }
+  _startFresh();
+}
 
-  // Restore English test
-  document.getElementById('verbalTested').checked = report.englishTest.verbalTested;
-  _updateToggleState('verbalTested', 'verbalTestedLabel', 'verbalFields');
-  document.getElementById('verbalDate').value = report.englishTest.verbalDate;
-  document.getElementById('verbalAssessment').value = report.englishTest.verbalAssessment;
-  document.getElementById('verbalByNativeSpeaker').checked = report.englishTest.verbalByNativeSpeaker;
-  _updateToggleLabel('verbalByNativeSpeaker', 'verbalByNativeSpeakerLabel');
+async function _handleImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
 
-  document.getElementById('writtenTested').checked = report.englishTest.writtenTested;
-  _updateToggleState('writtenTested', 'writtenTestedLabel', 'writtenFields');
-  document.getElementById('writtenNotes').value = report.englishTest.writtenNotes;
+  const errorEl = document.getElementById('importError');
+  errorEl.textContent = '';
 
-  // Restore arrival services
-  for (const [key, value] of Object.entries(report.arrivalServices)) {
-    const toggle = document.querySelector(`.service-toggle[data-service="${key}"]`);
-    if (toggle) {
-      toggle.checked = value.provided;
-      const item = toggle.closest('.service-item');
-      const details = item.querySelector('.service-details');
-      const stateLabel = item.querySelector('.toggle-state');
-      details.style.display = value.provided ? 'block' : 'none';
-      stateLabel.textContent = value.provided ? 'Yes' : 'No';
-      const detailInput = item.querySelector('.service-detail-input');
-      if (detailInput) detailInput.value = value.details;
+  try {
+    const data = await importReportFromPDF(file);
+    if (!data) {
+      errorEl.textContent = 'Could not read report data from this PDF. Only PDFs generated by this app can be imported.';
+      return;
     }
+
+    if (_hasStoredData()) {
+      if (!confirm('Importing will replace all current data. Continue?')) return;
+    }
+
+    report.date = data.date || new Date().toISOString().split('T')[0];
+    report.schoolName = data.schoolName || '';
+    report.schoolContactFirstName = data.schoolContactFirstName || '';
+    report.schoolContactLastName = data.schoolContactLastName || '';
+    report.schoolContactEmail = data.schoolContactEmail || '';
+    report.teachers = data.teachers || [];
+    report.relocationCompany = data.relocationCompany || { name: '', email: '' };
+    report.certification = data.certification || { link: '', costToTeacher: '' };
+    report.signature = { imageDataUrl: null, signerName: '', signerTitle: '' };
+
+    _saveToStorage();
+    _restoreAllFields();
+    _showWizard();
+  } catch (err) {
+    errorEl.textContent = 'Failed to read PDF file. Please try again.';
+    console.error('PDF import failed:', err);
   }
 
-  // Restore certification
-  document.getElementById('certProcedures').value = report.certification.procedures;
-  document.getElementById('certSteps').value = report.certification.stepsToObtain;
-  document.getElementById('teacherCostToggle').checked = report.certification.teacherCost;
-  _updateToggleState('teacherCostToggle', 'teacherCostLabel', 'certCostFields');
-  document.getElementById('costAmount').value = report.certification.costAmount;
-  document.getElementById('costTiming').value = report.certification.costTiming;
+  e.target.value = '';
+}
 
-  // Restore native English speaker
-  document.getElementById('nativeEnglishToggle').checked = report.nativeEnglishSpeaker.applicable;
-  _updateToggleState('nativeEnglishToggle', 'nativeEnglishLabel', 'nativeEnglishFields');
-  document.getElementById('nativeJustification').value = report.nativeEnglishSpeaker.justification;
+function _startFresh() {
+  report.schoolName = '';
+  report.schoolContactFirstName = '';
+  report.schoolContactLastName = '';
+  report.schoolContactEmail = '';
+  report.teachers = [];
+  report.relocationCompany = { name: '', email: '' };
+  report.certification = { link: '', costToTeacher: '' };
+  report.signature = { imageDataUrl: null, signerName: '', signerTitle: '' };
+  report.date = new Date().toISOString().split('T')[0];
 
-  // Restore signature
-  document.getElementById('signerName').value = report.signature.signerName;
-  document.getElementById('signerTitle').value = report.signature.signerTitle;
-  if (report.signature.imageDataUrl) {
-    restoreSignatureCanvas(report.signature.imageDataUrl);
-  }
+  _restoreAllFields();
+  _showWizard();
+}
 
-  updateHeaderDisplay();
+function _showWizard() {
+  document.getElementById('landingScreen').style.display = 'none';
+  document.getElementById('wizardProgress').style.display = '';
+  document.getElementById('wizardContent').style.display = '';
+  document.getElementById('wizardNavigation').style.display = '';
   currentStep = 1;
   updateWizardUI();
+  updateHeaderDisplay();
 }
 
-function _formatRelativeDate(isoString) {
-  const diffMs = Date.now() - new Date(isoString).getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
-}
-
-function initDraftRestore() {
-  const draft = loadDraft(DRAFT_KEY);
-  if (!draft) return;
-
-  const banner = document.getElementById('draftBanner');
-  document.getElementById('draftDate').textContent = _formatRelativeDate(draft.savedAt);
-  banner.style.display = 'flex';
-
-  document.getElementById('draftResumeBtn').addEventListener('click', () => {
-    banner.style.display = 'none';
-    _restoreDraft(draft);
-  });
-  document.getElementById('draftDiscardBtn').addEventListener('click', () => {
-    banner.style.display = 'none';
-    clearDraft(DRAFT_KEY);
-  });
+function _restoreAllFields() {
+  document.getElementById('schoolName').value = report.schoolName;
+  document.getElementById('contactFirstName').value = report.schoolContactFirstName;
+  document.getElementById('contactLastName').value = report.schoolContactLastName;
+  document.getElementById('contactEmail').value = report.schoolContactEmail;
+  document.getElementById('relocationName').value = report.relocationCompany.name;
+  document.getElementById('relocationEmail').value = report.relocationCompany.email;
+  document.getElementById('certLink').value = report.certification.link;
+  document.getElementById('certCost').value = report.certification.costToTeacher;
+  document.getElementById('signerName').value = report.signature.signerName;
+  document.getElementById('signerTitle').value = report.signature.signerTitle;
+  if (report.signature.imageDataUrl) restoreSignatureCanvas(report.signature.imageDataUrl);
+  updateHeaderDisplay();
 }
 
 // ========================================
@@ -204,21 +250,19 @@ function initDraftRestore() {
 document.addEventListener('DOMContentLoaded', () => {
   initNavigationButtons();
   initSchoolNameListener();
-  initReferences();
+  initVenueCheckboxes();
   initToggles();
-  initServiceToggles();
   initSignatureCanvas();
+  initTeacherButtons();
+
   document.getElementById('generatePdfBtn').addEventListener('click', generateReport);
 
-  // Report date is always today
   report.date = new Date().toISOString().split('T')[0];
-
-  renderReferences();
-
   document.getElementById('appVersion').textContent = `v${APP_VERSION}`;
 
-  initDraftRestore();
-  setInterval(_saveCurrentDraft, AUTOSAVE_INTERVAL_MS);
+  initLanding();
+  setInterval(() => { _syncCurrentStep(); _saveToStorage(); }, 30000);
+  window.addEventListener('beforeunload', () => { _syncCurrentStep(); _saveToStorage(); });
 });
 
 // ========================================
@@ -231,126 +275,290 @@ function updateHeaderDisplay() {
 }
 
 function initSchoolNameListener() {
-  const input = document.getElementById('schoolName');
-  input.addEventListener('input', () => {
-    report.schoolName = input.value.trim();
+  document.getElementById('schoolName').addEventListener('input', (e) => {
+    report.schoolName = e.target.value.trim();
     updateHeaderDisplay();
   });
 }
 
 // ========================================
-// References
+// Form Sync Helpers
 // ========================================
 
-function initReferences() {
-  document.getElementById('addReferenceBtn').addEventListener('click', () => {
-    report.references.push({ name: '', title: '', email: '', dateContacted: '', platform: '' });
-    renderReferences();
+function _syncSchoolFromForm() {
+  report.schoolName = document.getElementById('schoolName').value.trim();
+  report.schoolContactFirstName = document.getElementById('contactFirstName').value.trim();
+  report.schoolContactLastName = document.getElementById('contactLastName').value.trim();
+  report.schoolContactEmail = document.getElementById('contactEmail').value.trim();
+}
+
+function _syncSharedFromForm() {
+  report.relocationCompany.name = document.getElementById('relocationName').value.trim();
+  report.relocationCompany.email = document.getElementById('relocationEmail').value.trim();
+  report.certification.link = document.getElementById('certLink').value.trim();
+  report.certification.costToTeacher = document.getElementById('certCost').value.trim();
+}
+
+// ========================================
+// Teacher Table / Form Toggle
+// ========================================
+
+function initTeacherButtons() {
+  document.getElementById('addTeacherBtn').addEventListener('click', () => openTeacherForm(-1));
+  document.getElementById('saveTeacherBtn').addEventListener('click', saveTeacher);
+  document.getElementById('cancelTeacherBtn').addEventListener('click', closeTeacherForm);
+  document.getElementById('backToListBtn').addEventListener('click', closeTeacherForm);
+}
+
+function _showTableView() {
+  document.getElementById('teacherTableView').style.display = 'block';
+  document.getElementById('teacherFormView').style.display = 'none';
+  renderTeacherTable();
+  _updateWizardNav(true);
+}
+
+function _showFormView() {
+  document.getElementById('teacherTableView').style.display = 'none';
+  document.getElementById('teacherFormView').style.display = 'block';
+  _updateWizardNav(false);
+}
+
+function _updateWizardNav(showNav) {
+  document.getElementById('prevBtn').style.display = showNav ? '' : 'none';
+  document.getElementById('nextBtn').style.display = showNav ? '' : 'none';
+}
+
+function openTeacherForm(index) {
+  editingTeacherIndex = index;
+  wasAddingNew = (index === -1);
+
+  if (index === -1) {
+    document.getElementById('teacherFormTitle').textContent = 'Add Teacher';
+    const t = _emptyTeacher();
+    // Pre-populate from last teacher
+    if (report.teachers.length > 0) {
+      const prev = report.teachers[report.teachers.length - 1];
+      t.interviewPlace = prev.interviewPlace;
+      t.interviewCountry = prev.interviewCountry;
+      t.communicationVenues = [...prev.communicationVenues];
+      t.communicationOther = prev.communicationOther;
+      for (let r = 0; r < 2; r++) {
+        if (!prev.references || !prev.references[r]) continue;
+        t.references[r].interviewPlace = prev.references[r].interviewPlace;
+        t.references[r].interviewCountry = prev.references[r].interviewCountry;
+        t.references[r].communicationVenues = [...(prev.references[r].communicationVenues || [])];
+        t.references[r].communicationOther = prev.references[r].communicationOther;
+      }
+      t.englishTestMinutes = prev.englishTestMinutes;
+    }
+    _loadTeacherIntoForm(t);
+  } else {
+    document.getElementById('teacherFormTitle').textContent = `Edit Teacher #${index + 1}`;
+    _loadTeacherIntoForm(report.teachers[index]);
+  }
+
+  _showFormView();
+  document.getElementById('teacherFormView').scrollIntoView({ behavior: 'smooth' });
+}
+
+function saveTeacher() {
+  const t = _readTeacherFromForm();
+  if (!_validateTeacherForm(t)) return;
+
+  if (editingTeacherIndex === -1) {
+    report.teachers.push(t);
+  } else {
+    report.teachers[editingTeacherIndex] = t;
+  }
+
+  wasAddingNew = false;
+  _saveToStorage();
+  closeTeacherForm();
+}
+
+function closeTeacherForm() {
+  if (wasAddingNew && editingTeacherIndex >= 0) {
+    report.teachers.splice(editingTeacherIndex, 1);
+  }
+  editingTeacherIndex = -1;
+  wasAddingNew = false;
+  _saveToStorage();
+  _showTableView();
+}
+
+function deleteTeacher(index) {
+  if (!confirm('Delete this teacher? This cannot be undone.')) return;
+  report.teachers.splice(index, 1);
+  _saveToStorage();
+  renderTeacherTable();
+}
+
+// ========================================
+// Teacher Table Rendering
+// ========================================
+
+function renderTeacherTable() {
+  const container = document.getElementById('teacherTableContainer');
+
+  if (report.teachers.length === 0) {
+    container.innerHTML = '<p class="empty-state">No teachers added yet. Click "+ Add Teacher" to begin.</p>';
+    return;
+  }
+
+  const rows = report.teachers.map((t, i) => `
+    <tr>
+      <td>${escapeHtml(t.firstName)} ${escapeHtml(t.lastName)}</td>
+      <td>${escapeHtml(t.email)}</td>
+      <td>${escapeHtml(t.interviewDate)}</td>
+      <td>${escapeHtml([t.interviewPlace, t.interviewCountry].filter(Boolean).join(', '))}</td>
+      <td class="table-actions">
+        <button type="button" class="btn-secondary btn-sm" data-edit="${i}">Edit</button>
+        <button type="button" class="btn-icon-only btn-remove-teacher" data-delete="${i}" title="Delete">✕</button>
+      </td>
+    </tr>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="review-table-wrapper">
+      <table class="review-table teacher-mgmt-table">
+        <thead><tr><th>Name</th><th>Email</th><th>Interview</th><th>Place</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+
+  container.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => openTeacherForm(parseInt(btn.dataset.edit)));
+  });
+  container.querySelectorAll('[data-delete]').forEach(btn => {
+    btn.addEventListener('click', () => deleteTeacher(parseInt(btn.dataset.delete)));
   });
 }
 
-function renderReferences() {
-  const container = document.getElementById('referencesContainer');
-  container.innerHTML = '';
+// ========================================
+// Teacher Form <-> Object
+// ========================================
 
-  report.references.forEach((ref, index) => {
-    const template = document.getElementById('referenceTemplate');
-    const clone = template.content.cloneNode(true);
-    const card = clone.querySelector('.reference-card');
-    card.dataset.refIndex = index;
+function _loadTeacherIntoForm(t) {
+  document.getElementById('teacherFirstName').value = t.firstName;
+  document.getElementById('teacherLastName').value = t.lastName;
+  document.getElementById('teacherEmail').value = t.email;
+  document.getElementById('interviewDate').value = t.interviewDate;
+  document.getElementById('interviewPlace').value = t.interviewPlace;
+  document.getElementById('interviewCountry').value = t.interviewCountry;
+  document.getElementById('interviewLength').value = t.interviewLength;
 
-    card.querySelector('.reference-number').textContent = `Reference #${index + 1}`;
+  _setCheckboxGroup('teacherVenues', t.communicationVenues);
+  document.getElementById('teacherOtherVenue').value = t.communicationOther;
+  document.getElementById('teacherOtherField').style.display =
+    t.communicationVenues.includes('other') ? 'block' : 'none';
 
-    const removeBtn = card.querySelector('.btn-remove-ref');
-    if (report.references.length <= 2) {
-      removeBtn.style.display = 'none';
-    } else {
-      removeBtn.addEventListener('click', () => {
-        report.references.splice(index, 1);
-        renderReferences();
-      });
-    }
+  for (let r = 0; r < 2; r++) {
+    const ref = t.references[r];
+    const p = `ref${r + 1}`;
+    document.getElementById(`${p}Name`).value = ref.name;
+    document.getElementById(`${p}Title`).value = ref.title;
+    document.getElementById(`${p}Email`).value = ref.email;
+    document.getElementById(`${p}Date`).value = ref.interviewDate;
+    document.getElementById(`${p}Length`).value = ref.interviewLength;
+    document.getElementById(`${p}Place`).value = ref.interviewPlace;
+    document.getElementById(`${p}Country`).value = ref.interviewCountry;
+    _setCheckboxGroup(`${p}Venues`, ref.communicationVenues);
+    document.getElementById(`${p}OtherVenue`).value = ref.communicationOther;
+    document.getElementById(`${p}OtherField`).style.display =
+      ref.communicationVenues.includes('other') ? 'block' : 'none';
+  }
 
-    const nameInput = card.querySelector('.ref-name');
-    const titleInput = card.querySelector('.ref-title');
-    const emailInput = card.querySelector('.ref-email');
-    const dateInput = card.querySelector('.ref-date');
-    const platformInput = card.querySelector('.ref-platform');
+  document.getElementById('nativeEnglishToggle').checked = t.isNativeEnglishSpeaker;
+  _updateToggleState('nativeEnglishToggle', 'nativeEnglishLabel');
+  _updateNonNativeVisibility();
+  document.getElementById('nativeTestedToggle').checked = t.nativeTestedEnglish;
+  _updateToggleState('nativeTestedToggle', 'nativeTestedLabel');
+  document.getElementById('englishTestMinutes').value = t.englishTestMinutes;
 
-    nameInput.value = ref.name;
-    titleInput.value = ref.title;
-    emailInput.value = ref.email;
-    dateInput.value = ref.dateContacted;
-    platformInput.value = ref.platform;
+  // Clear errors
+  document.querySelectorAll('#teacherFormView .field-error').forEach(el => { el.textContent = ''; });
+}
 
-    nameInput.addEventListener('input', () => { report.references[index].name = nameInput.value; });
-    titleInput.addEventListener('input', () => { report.references[index].title = titleInput.value; });
-    emailInput.addEventListener('input', () => { report.references[index].email = emailInput.value; });
-    dateInput.addEventListener('input', () => { report.references[index].dateContacted = dateInput.value; });
-    platformInput.addEventListener('input', () => { report.references[index].platform = platformInput.value; });
+function _readTeacherFromForm() {
+  const t = _emptyTeacher();
+  t.firstName = document.getElementById('teacherFirstName').value.trim();
+  t.lastName = document.getElementById('teacherLastName').value.trim();
+  t.email = document.getElementById('teacherEmail').value.trim();
+  t.interviewDate = document.getElementById('interviewDate').value.trim();
+  t.interviewPlace = document.getElementById('interviewPlace').value.trim();
+  t.interviewCountry = document.getElementById('interviewCountry').value.trim();
+  t.interviewLength = document.getElementById('interviewLength').value.trim();
+  t.communicationVenues = _getCheckboxGroup('teacherVenues');
+  t.communicationOther = document.getElementById('teacherOtherVenue').value.trim();
 
-    container.appendChild(clone);
+  for (let r = 0; r < 2; r++) {
+    const ref = t.references[r];
+    const p = `ref${r + 1}`;
+    ref.name = document.getElementById(`${p}Name`).value.trim();
+    ref.title = document.getElementById(`${p}Title`).value.trim();
+    ref.email = document.getElementById(`${p}Email`).value.trim();
+    ref.interviewDate = document.getElementById(`${p}Date`).value.trim();
+    ref.interviewLength = document.getElementById(`${p}Length`).value.trim();
+    ref.interviewPlace = document.getElementById(`${p}Place`).value.trim();
+    ref.interviewCountry = document.getElementById(`${p}Country`).value.trim();
+    ref.communicationVenues = _getCheckboxGroup(`${p}Venues`);
+    ref.communicationOther = document.getElementById(`${p}OtherVenue`).value.trim();
+  }
+
+  t.isNativeEnglishSpeaker = document.getElementById('nativeEnglishToggle').checked;
+  t.nativeTestedEnglish = document.getElementById('nativeTestedToggle').checked;
+  t.englishTestMinutes = document.getElementById('englishTestMinutes').value;
+  return t;
+}
+
+// ========================================
+// Checkbox Groups
+// ========================================
+
+function _getCheckboxGroup(containerId) {
+  return Array.from(document.getElementById(containerId).querySelectorAll('input[type="checkbox"]:checked'))
+    .map(cb => cb.value);
+}
+
+function _setCheckboxGroup(containerId, values) {
+  document.getElementById(containerId).querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.checked = values.includes(cb.value);
   });
+}
+
+function initVenueCheckboxes() {
+  for (const groupId of ['teacherVenues', 'ref1Venues', 'ref2Venues']) {
+    const otherFieldId = groupId.replace('Venues', 'OtherField');
+    document.getElementById(groupId).addEventListener('change', (e) => {
+      if (e.target.value === 'other') {
+        document.getElementById(otherFieldId).style.display = e.target.checked ? 'block' : 'none';
+      }
+    });
+  }
 }
 
 // ========================================
 // Toggle Switches
 // ========================================
 
-function _updateToggleState(checkboxId, labelId, fieldsId) {
-  const checked = document.getElementById(checkboxId).checked;
-  document.getElementById(labelId).textContent = checked ? 'Yes' : 'No';
-  if (fieldsId) {
-    document.getElementById(fieldsId).style.display = checked ? 'block' : 'none';
-  }
+function _updateToggleState(checkboxId, labelId) {
+  document.getElementById(labelId).textContent =
+    document.getElementById(checkboxId).checked ? 'Yes' : 'No';
 }
 
-function _updateToggleLabel(checkboxId, labelId) {
-  const checked = document.getElementById(checkboxId).checked;
-  document.getElementById(labelId).textContent = checked ? 'Yes' : 'No';
+function _updateNonNativeVisibility() {
+  document.getElementById('nonNativeFields').style.display =
+    document.getElementById('nativeEnglishToggle').checked ? 'none' : 'block';
 }
 
 function initToggles() {
-  // Verbal tested
-  document.getElementById('verbalTested').addEventListener('change', () => {
-    _updateToggleState('verbalTested', 'verbalTestedLabel', 'verbalFields');
-  });
-
-  // Verbal by native speaker
-  document.getElementById('verbalByNativeSpeaker').addEventListener('change', () => {
-    _updateToggleLabel('verbalByNativeSpeaker', 'verbalByNativeSpeakerLabel');
-  });
-
-  // Written tested
-  document.getElementById('writtenTested').addEventListener('change', () => {
-    _updateToggleState('writtenTested', 'writtenTestedLabel', 'writtenFields');
-  });
-
-  // Teacher cost
-  document.getElementById('teacherCostToggle').addEventListener('change', () => {
-    _updateToggleState('teacherCostToggle', 'teacherCostLabel', 'certCostFields');
-  });
-
-  // Native English speaker
   document.getElementById('nativeEnglishToggle').addEventListener('change', () => {
-    _updateToggleState('nativeEnglishToggle', 'nativeEnglishLabel', 'nativeEnglishFields');
+    _updateToggleState('nativeEnglishToggle', 'nativeEnglishLabel');
+    _updateNonNativeVisibility();
   });
-}
-
-// ========================================
-// Arrival Service Toggles
-// ========================================
-
-function initServiceToggles() {
-  document.querySelectorAll('.service-toggle').forEach(toggle => {
-    toggle.addEventListener('change', () => {
-      const item = toggle.closest('.service-item');
-      const details = item.querySelector('.service-details');
-      const stateLabel = item.querySelector('.toggle-state');
-
-      details.style.display = toggle.checked ? 'block' : 'none';
-      stateLabel.textContent = toggle.checked ? 'Yes' : 'No';
-    });
+  document.getElementById('nativeTestedToggle').addEventListener('change', () => {
+    _updateToggleState('nativeTestedToggle', 'nativeTestedLabel');
   });
 }
 
@@ -364,12 +572,9 @@ let signatureCtx = null;
 function initSignatureCanvas() {
   const canvas = document.getElementById('signatureCanvas');
   signatureCtx = canvas.getContext('2d');
-
-  // Set actual canvas size to match display
   const rect = canvas.getBoundingClientRect();
   canvas.width = rect.width || 500;
   canvas.height = 200;
-
   signatureCtx.lineWidth = 2;
   signatureCtx.lineCap = 'round';
   signatureCtx.strokeStyle = '#000';
@@ -378,8 +583,6 @@ function initSignatureCanvas() {
   canvas.addEventListener('mousemove', draw);
   canvas.addEventListener('mouseup', stopDrawing);
   canvas.addEventListener('mouseleave', stopDrawing);
-
-  // Touch events
   canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); });
   canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); });
   canvas.addEventListener('touchend', stopDrawing);
@@ -396,23 +599,9 @@ function _getCanvasCoords(e) {
   };
 }
 
-function startDrawing(e) {
-  isDrawing = true;
-  const { x, y } = _getCanvasCoords(e);
-  signatureCtx.beginPath();
-  signatureCtx.moveTo(x, y);
-}
-
-function draw(e) {
-  if (!isDrawing) return;
-  const { x, y } = _getCanvasCoords(e);
-  signatureCtx.lineTo(x, y);
-  signatureCtx.stroke();
-}
-
-function stopDrawing() {
-  isDrawing = false;
-}
+function startDrawing(e) { isDrawing = true; const { x, y } = _getCanvasCoords(e); signatureCtx.beginPath(); signatureCtx.moveTo(x, y); }
+function draw(e) { if (!isDrawing) return; const { x, y } = _getCanvasCoords(e); signatureCtx.lineTo(x, y); signatureCtx.stroke(); }
+function stopDrawing() { isDrawing = false; }
 
 function clearSignature() {
   const canvas = document.getElementById('signatureCanvas');
@@ -429,11 +618,9 @@ function _isCanvasBlank() {
 }
 
 function _captureSignature() {
-  if (_isCanvasBlank()) {
-    report.signature.imageDataUrl = null;
-  } else {
-    report.signature.imageDataUrl = document.getElementById('signatureCanvas').toDataURL('image/png');
-  }
+  report.signature.imageDataUrl = _isCanvasBlank()
+    ? null
+    : document.getElementById('signatureCanvas').toDataURL('image/png');
 }
 
 function restoreSignatureCanvas(dataUrl) {
@@ -447,52 +634,6 @@ function restoreSignatureCanvas(dataUrl) {
 }
 
 // ========================================
-// Form Sync
-// ========================================
-
-function syncFormToState() {
-  report.schoolName = document.getElementById('schoolName').value.trim();
-  report.teacherFirstName = document.getElementById('teacherFirstName').value.trim();
-  report.teacherLastName = document.getElementById('teacherLastName').value.trim();
-  report.teacherEmail = document.getElementById('teacherEmail').value.trim();
-
-  report.interviewDates = document.getElementById('interviewDates').value.trim();
-  report.interviewPlace = document.getElementById('interviewPlace').value.trim();
-  report.interviewCountry = document.getElementById('interviewCountry').value.trim();
-  report.interviewPlatform = document.getElementById('interviewPlatform').value.trim();
-  report.interviewLength = document.getElementById('interviewLength').value.trim();
-  report.communicationDetails = document.getElementById('communicationDetails').value.trim();
-
-  report.englishTest.verbalTested = document.getElementById('verbalTested').checked;
-  report.englishTest.verbalDate = document.getElementById('verbalDate').value.trim();
-  report.englishTest.verbalAssessment = document.getElementById('verbalAssessment').value.trim();
-  report.englishTest.verbalByNativeSpeaker = document.getElementById('verbalByNativeSpeaker').checked;
-  report.englishTest.writtenTested = document.getElementById('writtenTested').checked;
-  report.englishTest.writtenNotes = document.getElementById('writtenNotes').value.trim();
-
-  // Arrival services
-  document.querySelectorAll('.service-toggle').forEach(toggle => {
-    const key = toggle.dataset.service;
-    report.arrivalServices[key].provided = toggle.checked;
-    const input = document.querySelector(`.service-detail-input[data-service="${key}"]`);
-    if (input) report.arrivalServices[key].details = input.value.trim();
-  });
-
-  report.certification.procedures = document.getElementById('certProcedures').value.trim();
-  report.certification.stepsToObtain = document.getElementById('certSteps').value.trim();
-  report.certification.teacherCost = document.getElementById('teacherCostToggle').checked;
-  report.certification.costAmount = document.getElementById('costAmount').value.trim();
-  report.certification.costTiming = document.getElementById('costTiming').value;
-
-  report.nativeEnglishSpeaker.applicable = document.getElementById('nativeEnglishToggle').checked;
-  report.nativeEnglishSpeaker.justification = document.getElementById('nativeJustification').value.trim();
-
-  _captureSignature();
-  report.signature.signerName = document.getElementById('signerName').value.trim();
-  report.signature.signerTitle = document.getElementById('signerTitle').value.trim();
-}
-
-// ========================================
 // Wizard Navigation
 // ========================================
 
@@ -502,17 +643,48 @@ function initNavigationButtons() {
   updateNavigationButtons();
 }
 
+function _syncCurrentStep() {
+  if (currentStep === 1) _syncSchoolFromForm();
+  if (currentStep === 2 && _isTeacherFormOpen()) {
+    _saveTeacherFormToEditing();
+  }
+  if (currentStep === 3) _syncSharedFromForm();
+  if (currentStep === 4) {
+    _captureSignature();
+    report.signature.signerName = document.getElementById('signerName').value.trim();
+    report.signature.signerTitle = document.getElementById('signerTitle').value.trim();
+  }
+}
+
+function _isTeacherFormOpen() {
+  return document.getElementById('teacherFormView').style.display !== 'none';
+}
+
+function _saveTeacherFormToEditing() {
+  const t = _readTeacherFromForm();
+  if (editingTeacherIndex === -1) {
+    if (t.firstName || t.lastName || t.email) {
+      report.teachers.push(t);
+      editingTeacherIndex = report.teachers.length - 1;
+    }
+  } else {
+    report.teachers[editingTeacherIndex] = t;
+  }
+}
+
 function goToPreviousStep() {
   if (currentStep > 1) {
-    _saveCurrentDraft();
+    _syncCurrentStep();
+    _saveToStorage();
     currentStep--;
     updateWizardUI();
   }
 }
 
 function goToNextStep() {
+  _syncCurrentStep();
   if (!validateCurrentStep()) return;
-  _saveCurrentDraft();
+  _saveToStorage();
 
   if (currentStep < TOTAL_STEPS) {
     currentStep++;
@@ -532,7 +704,9 @@ function updateWizardUI() {
     else if (n < currentStep) step.classList.add('completed');
   });
   updateNavigationButtons();
-  document.querySelector('.wizard-content').scrollIntoView({ behavior: 'smooth' });
+  if (currentStep === 2) {
+    _showTableView();
+  }
 }
 
 function updateNavigationButtons() {
@@ -552,55 +726,62 @@ function updateNavigationButtons() {
 // ========================================
 
 function validateCurrentStep() {
-  syncFormToState();
   switch (currentStep) {
-    case 1: return validateGeneral();
-    case 2: return validateInterview();
-    case 5: return validateCertification();
-    case 6: return validateSignature();
+    case 1: {
+      _syncSchoolFromForm();
+      return _validateSchool();
+    }
+    case 2: return _validateTeacherList();
+    case 4: {
+      _captureSignature();
+      report.signature.signerName = document.getElementById('signerName').value.trim();
+      report.signature.signerTitle = document.getElementById('signerTitle').value.trim();
+      return _validateSignature();
+    }
     default: return true;
   }
 }
 
-function validateGeneral() {
+function _validateSchool() {
   let valid = true;
   if (!report.schoolName) { showError('schoolNameError', 'Required.'); valid = false; } else clearError('schoolNameError');
-  if (!report.teacherFirstName) { showError('firstNameError', 'Required.'); valid = false; } else clearError('firstNameError');
-  if (!report.teacherLastName) { showError('lastNameError', 'Required.'); valid = false; } else clearError('lastNameError');
-  if (!report.teacherEmail) { showError('emailError', 'Required.'); valid = false; } else clearError('emailError');
+  if (!report.schoolContactFirstName) { showError('contactFirstNameError', 'Required.'); valid = false; } else clearError('contactFirstNameError');
+  if (!report.schoolContactLastName) { showError('contactLastNameError', 'Required.'); valid = false; } else clearError('contactLastNameError');
+  if (!report.schoolContactEmail) { showError('contactEmailError', 'Required.'); valid = false; } else clearError('contactEmailError');
   return valid;
 }
 
-function validateInterview() {
-  let valid = true;
-  if (!report.interviewDates) { showError('interviewDatesError', 'Required.'); valid = false; } else clearError('interviewDatesError');
-  if (!report.interviewPlace) { showError('interviewPlaceError', 'Required.'); valid = false; } else clearError('interviewPlaceError');
-  if (!report.interviewCountry) { showError('interviewCountryError', 'Required.'); valid = false; } else clearError('interviewCountryError');
-  if (!report.interviewPlatform) { showError('interviewPlatformError', 'Required.'); valid = false; } else clearError('interviewPlatformError');
-  if (!report.interviewLength) { showError('interviewLengthError', 'Required.'); valid = false; } else clearError('interviewLengthError');
-  if (!report.communicationDetails) { showError('communicationError', 'Required.'); valid = false; } else clearError('communicationError');
-
-  // Validate at least 2 references have name + email
-  let refsValid = 0;
-  for (const ref of report.references) {
-    if (ref.name.trim() && ref.email.trim()) refsValid++;
+function _validateTeacherList() {
+  if (report.teachers.length === 0) {
+    showError('teacherTableError', 'You must add at least one teacher.');
+    return false;
   }
-  if (refsValid < 2) { showError('referencesError', 'At least 2 references with name and email are required.'); valid = false; }
+  clearError('teacherTableError');
+  return true;
+}
+
+function _validateTeacherForm(t) {
+  let valid = true;
+  if (!t.firstName) { showError('teacherFirstNameError', 'Required.'); valid = false; } else clearError('teacherFirstNameError');
+  if (!t.lastName) { showError('teacherLastNameError', 'Required.'); valid = false; } else clearError('teacherLastNameError');
+  if (!t.email) { showError('teacherEmailError', 'Required.'); valid = false; } else clearError('teacherEmailError');
+  if (!t.interviewDate) { showError('interviewDateError', 'Required.'); valid = false; } else clearError('interviewDateError');
+  if (!t.interviewLength) { showError('interviewLengthError', 'Required.'); valid = false; } else clearError('interviewLengthError');
+  if (!t.interviewPlace) { showError('interviewPlaceError', 'Required.'); valid = false; } else clearError('interviewPlaceError');
+  if (!t.interviewCountry) { showError('interviewCountryError', 'Required.'); valid = false; } else clearError('interviewCountryError');
+  if (t.communicationVenues.length === 0) { showError('teacherVenuesError', 'Select at least one.'); valid = false; } else clearError('teacherVenuesError');
+
+  let refsValid = true;
+  for (const ref of t.references) {
+    if (!ref.name || !ref.email) refsValid = false;
+  }
+  if (!refsValid) { showError('referencesError', 'Both references require a name and email.'); valid = false; }
   else clearError('referencesError');
 
   return valid;
 }
 
-function validateCertification() {
-  if (report.nativeEnglishSpeaker.applicable && !report.nativeEnglishSpeaker.justification) {
-    showError('justificationError', 'Justification is required when hiring a native English speaker.');
-    return false;
-  }
-  clearError('justificationError');
-  return true;
-}
-
-function validateSignature() {
+function _validateSignature() {
   let valid = true;
   if (!report.signature.imageDataUrl) { showError('signatureError', 'Signature is required.'); valid = false; } else clearError('signatureError');
   if (!report.signature.signerName) { showError('signerNameError', 'Required.'); valid = false; } else clearError('signerNameError');
@@ -612,87 +793,84 @@ function validateSignature() {
 // Review
 // ========================================
 
+function _venueLabels(venues, other) {
+  const labels = venues.filter(v => v !== 'other').map(v => VENUE_OPTIONS.find(o => o.value === v)?.label || v);
+  if (venues.includes('other') && other) labels.push(other);
+  return labels.join(', ');
+}
+
+function _placeCountry(place, country) {
+  return [place, country].filter(Boolean).join(' – ');
+}
+
 function renderReview() {
-  syncFormToState();
+  _syncSharedFromForm();
+  _captureSignature();
+  report.signature.signerName = document.getElementById('signerName').value.trim();
+  report.signature.signerTitle = document.getElementById('signerTitle').value.trim();
+
   const container = document.getElementById('reviewContainer');
 
-  const serviceLabels = {
-    meetAtAirport: 'Meet at airport',
-    hostFamily: 'Host family for first two weeks',
-    transientHotel: 'Transient hotel for first two weeks',
-    rentalCar: 'Rental car for first two weeks',
-    housingAssistance: 'Help find housing/furnish apartment',
-    socialSecurity: 'Help with Social Security card'
-  };
+  const tableRows = report.teachers.map(t => `
+    <tr>
+      <td>${escapeHtml(t.firstName)} ${escapeHtml(t.lastName)}</td>
+      <td>${escapeHtml(t.email)}</td>
+      <td>${escapeHtml(t.interviewDate)}</td>
+      <td>${escapeHtml(_placeCountry(t.interviewPlace, t.interviewCountry))}</td>
+    </tr>
+  `).join('');
 
-  const servicesHtml = Object.entries(report.arrivalServices)
-    .map(([key, val]) => `
-      <div class="review-field">
-        <span class="review-label">${serviceLabels[key]}</span>
-        <span class="review-value">${val.provided ? 'Yes' : 'No'}${val.provided && val.details ? ` — ${escapeHtml(val.details)}` : ''}</span>
-      </div>
+  const teacherSections = report.teachers.map((t, i) => {
+    const refHtml = t.references.map((ref, ri) => `
+      <h4 style="margin: 12px 0 8px; color: var(--color-primary-dark);">Reference #${ri + 1}</h4>
+      <div class="review-field"><span class="review-label">Name</span><span class="review-value">${escapeHtml(ref.name)}${ref.title ? `, ${escapeHtml(ref.title)}` : ''}</span></div>
+      <div class="review-field"><span class="review-label">Email</span><span class="review-value">${escapeHtml(ref.email)}</span></div>
+      ${ref.interviewDate ? `<div class="review-field"><span class="review-label">Interview Date</span><span class="review-value">${escapeHtml(ref.interviewDate)}</span></div>` : ''}
+      ${ref.interviewLength ? `<div class="review-field"><span class="review-label">Interview Length</span><span class="review-value">${escapeHtml(ref.interviewLength)}</span></div>` : ''}
+      ${(ref.interviewPlace || ref.interviewCountry) ? `<div class="review-field"><span class="review-label">Place</span><span class="review-value">${escapeHtml(_placeCountry(ref.interviewPlace, ref.interviewCountry))}</span></div>` : ''}
+      ${ref.communicationVenues.length ? `<div class="review-field"><span class="review-label">Communication</span><span class="review-value">${escapeHtml(_venueLabels(ref.communicationVenues, ref.communicationOther))}</span></div>` : ''}
     `).join('');
 
-  const refsHtml = report.references
-    .filter(r => r.name)
-    .map((r, i) => `
-      <div class="review-field" style="flex-direction: column; gap: 2px;">
-        <span class="review-label">${i + 1}. ${escapeHtml(r.name)}${r.title ? `, ${escapeHtml(r.title)}` : ''}</span>
-        <span class="review-value" style="text-align: left; font-size: 0.9rem;">${escapeHtml(r.email)}${r.dateContacted ? ` — ${escapeHtml(r.dateContacted)}` : ''}${r.platform ? ` (${escapeHtml(r.platform)})` : ''}</span>
+    return `
+      <div class="review-section">
+        <h3>Teacher ${i + 1}: ${escapeHtml(t.firstName)} ${escapeHtml(t.lastName)}</h3>
+        <div class="review-field"><span class="review-label">Email</span><span class="review-value">${escapeHtml(t.email)}</span></div>
+        <div class="review-field"><span class="review-label">Interview Date</span><span class="review-value">${escapeHtml(t.interviewDate)}</span></div>
+        <div class="review-field"><span class="review-label">Interview Length</span><span class="review-value">${escapeHtml(t.interviewLength)}</span></div>
+        <div class="review-field"><span class="review-label">Place</span><span class="review-value">${escapeHtml(_placeCountry(t.interviewPlace, t.interviewCountry))}</span></div>
+        <div class="review-field"><span class="review-label">Communication</span><span class="review-value">${escapeHtml(_venueLabels(t.communicationVenues, t.communicationOther))}</span></div>
+        ${refHtml}
+        <h4 style="margin: 12px 0 8px; color: var(--color-primary-dark);">English Assessment</h4>
+        <div class="review-field"><span class="review-label">Native speaker</span><span class="review-value">${t.isNativeEnglishSpeaker ? 'Yes' : 'No'}</span></div>
+        ${!t.isNativeEnglishSpeaker ? `
+          <div class="review-field"><span class="review-label">Tested by native speaker</span><span class="review-value">${t.nativeTestedEnglish ? 'Yes' : 'No'}</span></div>
+          ${t.englishTestMinutes ? `<div class="review-field"><span class="review-label">Test duration</span><span class="review-value">${escapeHtml(t.englishTestMinutes)} minutes</span></div>` : ''}
+        ` : ''}
       </div>
-    `).join('');
+    `;
+  }).join('');
 
   container.innerHTML = `
     <div class="review-section">
-      <h3>General Information</h3>
+      <h3>School Information</h3>
       <div class="review-field"><span class="review-label">School</span><span class="review-value">${escapeHtml(report.schoolName)}</span></div>
-      <div class="review-field"><span class="review-label">Date</span><span class="review-value">${escapeHtml(report.date)}</span></div>
-      <div class="review-field"><span class="review-label">Teacher</span><span class="review-value">${escapeHtml(report.teacherFirstName)} ${escapeHtml(report.teacherLastName)}</span></div>
-      <div class="review-field"><span class="review-label">Email</span><span class="review-value">${escapeHtml(report.teacherEmail)}</span></div>
+      <div class="review-field"><span class="review-label">Contact</span><span class="review-value">${escapeHtml(report.schoolContactFirstName)} ${escapeHtml(report.schoolContactLastName)}</span></div>
+      <div class="review-field"><span class="review-label">Email</span><span class="review-value">${escapeHtml(report.schoolContactEmail)}</span></div>
     </div>
-
     <div class="review-section">
-      <h3>Interview & References</h3>
-      <div class="review-field"><span class="review-label">Interview Date(s)</span><span class="review-value">${escapeHtml(report.interviewDates)}</span></div>
-      <div class="review-field"><span class="review-label">Place</span><span class="review-value">${escapeHtml(report.interviewPlace)}</span></div>
-      <div class="review-field"><span class="review-label">Country</span><span class="review-value">${escapeHtml(report.interviewCountry)}</span></div>
-      <div class="review-field"><span class="review-label">Platform</span><span class="review-value">${escapeHtml(report.interviewPlatform)}</span></div>
-      <div class="review-field"><span class="review-label">Length</span><span class="review-value">${escapeHtml(report.interviewLength)}</span></div>
-      <div class="review-field"><span class="review-label">Communication</span><span class="review-value multiline">${escapeHtml(report.communicationDetails)}</span></div>
-      <h4 style="margin: 12px 0 8px; color: var(--color-primary-dark);">References</h4>
-      ${refsHtml}
+      <h3>Teacher Summary</h3>
+      <div class="review-table-wrapper">
+        <table class="review-table"><thead><tr><th>Name</th><th>Email</th><th>Interview</th><th>Place</th></tr></thead><tbody>${tableRows}</tbody></table>
+      </div>
     </div>
-
+    ${teacherSections}
     <div class="review-section">
-      <h3>English Test</h3>
-      <div class="review-field"><span class="review-label">Verbal tested</span><span class="review-value">${report.englishTest.verbalTested ? 'Yes' : 'No'}</span></div>
-      ${report.englishTest.verbalTested ? `
-        <div class="review-field"><span class="review-label">Date</span><span class="review-value">${escapeHtml(report.englishTest.verbalDate)}</span></div>
-        <div class="review-field"><span class="review-label">Assessment</span><span class="review-value">${escapeHtml(report.englishTest.verbalAssessment)}</span></div>
-        <div class="review-field"><span class="review-label">By native speaker</span><span class="review-value">${report.englishTest.verbalByNativeSpeaker ? 'Yes' : 'No'}</span></div>
-      ` : ''}
-      <div class="review-field"><span class="review-label">Written tested</span><span class="review-value">${report.englishTest.writtenTested ? 'Yes' : 'No'}</span></div>
-      ${report.englishTest.writtenTested && report.englishTest.writtenNotes ? `
-        <div class="review-field"><span class="review-label">Notes</span><span class="review-value">${escapeHtml(report.englishTest.writtenNotes)}</span></div>
-      ` : ''}
+      <h3>Services & Certification</h3>
+      <div class="review-field"><span class="review-label">Relocation Company</span><span class="review-value">${escapeHtml(report.relocationCompany.name || 'N/A')}</span></div>
+      <div class="review-field"><span class="review-label">Company Email</span><span class="review-value">${escapeHtml(report.relocationCompany.email || 'N/A')}</span></div>
+      <div class="review-field"><span class="review-label">Certification Link</span><span class="review-value">${escapeHtml(report.certification.link || 'N/A')}</span></div>
+      <div class="review-field"><span class="review-label">Cost to Teacher</span><span class="review-value">${escapeHtml(report.certification.costToTeacher || 'N/A')}</span></div>
     </div>
-
-    <div class="review-section">
-      <h3>Arrival Services</h3>
-      ${servicesHtml}
-    </div>
-
-    <div class="review-section">
-      <h3>Certification</h3>
-      ${report.certification.procedures ? `<div class="review-field"><span class="review-label">Procedures</span><span class="review-value multiline">${escapeHtml(report.certification.procedures)}</span></div>` : ''}
-      ${report.certification.stepsToObtain ? `<div class="review-field"><span class="review-label">Steps</span><span class="review-value multiline">${escapeHtml(report.certification.stepsToObtain)}</span></div>` : ''}
-      <div class="review-field"><span class="review-label">Teacher cost</span><span class="review-value">${report.certification.teacherCost ? `Yes — ${escapeHtml(report.certification.costAmount)} (${report.certification.costTiming === 'advance' ? 'pay in advance' : report.certification.costTiming === 'after_arrival' ? 'pay after arrival' : 'timing not specified'})` : 'No'}</span></div>
-      ${report.nativeEnglishSpeaker.applicable ? `
-        <h4 style="margin: 12px 0 8px; color: var(--color-primary-dark);">Native English Speaker Justification</h4>
-        <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(report.nativeEnglishSpeaker.justification)}</p>
-      ` : ''}
-    </div>
-
     <div class="review-section">
       <h3>Signature</h3>
       ${report.signature.imageDataUrl ? `<img src="${report.signature.imageDataUrl}" alt="Signature" style="max-width: 300px; border: 1px solid var(--color-border); border-radius: 4px; margin-bottom: 8px;">` : '<p>No signature</p>'}
@@ -713,26 +891,21 @@ async function generateReport() {
 
   try {
     const pdfBytes = await generatePDF(report, (s) => { statusEl.textContent = s; });
-    const filename = generateFilename(report.date, report.teacherLastName);
+    const filename = generateFilename(report.date, report.schoolName);
 
     statusEl.textContent = 'Downloading...';
     downloadPDF(pdfBytes, filename);
-    clearDraft(DRAFT_KEY);
 
     statusEl.textContent = 'Complete!';
     setTimeout(() => { overlay.style.display = 'none'; }, 1000);
   } catch (error) {
     console.error('PDF generation failed:', error);
     overlay.style.display = 'none';
-    showErrorWithDebugDownload(error);
+    _showErrorModal(error);
   }
 }
 
-// ========================================
-// Error Handling
-// ========================================
-
-function showErrorWithDebugDownload(error) {
+function _showErrorModal(error) {
   const overlay = document.createElement('div');
   overlay.className = 'progress-overlay';
   overlay.style.display = 'flex';
@@ -748,30 +921,26 @@ function showErrorWithDebugDownload(error) {
       <button type="button" class="btn-secondary btn-close-error">Close</button>
     </div>
   `;
-
-  modal.querySelector('.btn-download-debug').addEventListener('click', () => downloadDebugInfo(error));
+  modal.querySelector('.btn-download-debug').addEventListener('click', () => {
+    const debugData = {
+      appVersion: APP_VERSION, form: 'recruitment-report',
+      timestamp: new Date().toISOString(), userAgent: navigator.userAgent,
+      error: { message: error.message, stack: error.stack },
+      report: JSON.parse(JSON.stringify(report))
+    };
+    const blob = new Blob([JSON.stringify(debugData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `debug_recruitment_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  });
   modal.querySelector('.btn-close-error').addEventListener('click', () => overlay.remove());
-
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
-}
-
-function downloadDebugInfo(error) {
-  const debugData = {
-    appVersion: APP_VERSION, form: 'recruitment-report',
-    timestamp: new Date().toISOString(), userAgent: navigator.userAgent,
-    error: { message: error.message, stack: error.stack },
-    report: _buildDraftData()
-  };
-  const blob = new Blob([JSON.stringify(debugData, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `debug_recruitment_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 // ========================================

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recruiting Report - Cordell Hull Foundation</title>
   <link rel="icon" type="image/jpeg" href="./assets/logo.jpeg">
-  <link rel="stylesheet" href="styles.css?v=1.1.0">
+  <link rel="stylesheet" href="styles.css?v=2.0.1">
 </head>
 <body>
   <div class="app-container">
@@ -20,44 +20,52 @@
       <p class="year-display" id="dateDisplay"></p>
     </header>
 
-    <nav class="wizard-progress" aria-label="Form progress">
+    <!-- Landing Screen -->
+    <div id="landingScreen" style="display: none;">
+      <div class="landing-card">
+        <h2 id="landingSchoolName" class="landing-school-name"></h2>
+        <p class="landing-info" id="landingInfo"></p>
+        <div class="landing-actions">
+          <button type="button" id="continueBtn" class="btn-primary btn-large">Continue</button>
+          <button type="button" id="startNewBtn" class="btn-secondary">Start New Report</button>
+          <div class="landing-divider"><span>or</span></div>
+          <label class="btn-secondary btn-import" for="importPdfInput">Import from PDF</label>
+          <input type="file" id="importPdfInput" accept=".pdf" style="display: none;">
+        </div>
+        <p class="field-error" id="importError"></p>
+      </div>
+    </div>
+
+    <nav class="wizard-progress" aria-label="Form progress" id="wizardProgress" style="display: none;">
       <ol class="progress-steps">
         <li class="progress-step active" data-step="1">
           <span class="step-number">1</span>
-          <span class="step-label">General</span>
+          <span class="step-label">School</span>
         </li>
         <li class="progress-step" data-step="2">
           <span class="step-number">2</span>
-          <span class="step-label">Interview</span>
+          <span class="step-label">Teachers</span>
         </li>
         <li class="progress-step" data-step="3">
           <span class="step-number">3</span>
-          <span class="step-label">English</span>
+          <span class="step-label">Services</span>
         </li>
         <li class="progress-step" data-step="4">
           <span class="step-number">4</span>
-          <span class="step-label">Arrival</span>
+          <span class="step-label">Sign</span>
         </li>
         <li class="progress-step" data-step="5">
           <span class="step-number">5</span>
-          <span class="step-label">Cert.</span>
-        </li>
-        <li class="progress-step" data-step="6">
-          <span class="step-number">6</span>
-          <span class="step-label">Sign</span>
-        </li>
-        <li class="progress-step" data-step="7">
-          <span class="step-number">7</span>
           <span class="step-label">Review</span>
         </li>
       </ol>
     </nav>
 
-    <main class="wizard-content">
-      <!-- Step 1: General Information -->
+    <main class="wizard-content" id="wizardContent" style="display: none;">
+      <!-- Step 1: School Info -->
       <section class="wizard-step active" data-step="1">
-        <h2>General Information</h2>
-        <p class="step-description">Basic details about the school and the teacher being recruited.</p>
+        <h2>School Information</h2>
+        <p class="step-description">This information appears once at the top of the report.</p>
 
         <div class="form-group">
           <label for="schoolName">Name of School <span class="required">*</span></label>
@@ -65,354 +73,190 @@
           <span class="field-error" id="schoolNameError"></span>
         </div>
 
-        <h3 class="section-subheading">Teacher Information</h3>
+        <h3 class="section-subheading">School Contact</h3>
 
         <div class="form-row">
           <div class="form-group">
-            <label for="teacherFirstName">First Name <span class="required">*</span></label>
-            <input type="text" id="teacherFirstName" placeholder="First name" required>
-            <span class="field-error" id="firstNameError"></span>
+            <label for="contactFirstName">First Name <span class="required">*</span></label>
+            <input type="text" id="contactFirstName" placeholder="First name" required>
+            <span class="field-error" id="contactFirstNameError"></span>
           </div>
           <div class="form-group">
-            <label for="teacherLastName">Last Name <span class="required">*</span></label>
-            <input type="text" id="teacherLastName" placeholder="Last name" required>
-            <span class="field-error" id="lastNameError"></span>
+            <label for="contactLastName">Last Name <span class="required">*</span></label>
+            <input type="text" id="contactLastName" placeholder="Last name" required>
+            <span class="field-error" id="contactLastNameError"></span>
           </div>
         </div>
 
         <div class="form-group">
-          <label for="teacherEmail">Teacher Email Address <span class="required">*</span></label>
-          <input type="email" id="teacherEmail" placeholder="teacher@example.com" required>
-          <span class="field-error" id="emailError"></span>
+          <label for="contactEmail">Email Address <span class="required">*</span></label>
+          <input type="email" id="contactEmail" placeholder="contact@school.edu" required>
+          <span class="field-error" id="contactEmailError"></span>
+        </div>
+
+        <div class="info-box">
+          <p>On the next step you will manage the list of teachers being recruited. You can add, edit, or remove teachers at any time.</p>
         </div>
       </section>
 
-      <!-- Step 2: Interview & References -->
+      <!-- Step 2: Teachers (table view + form view) -->
       <section class="wizard-step" data-step="2">
-        <h2>Interview & References</h2>
-        <p class="step-description">Details about the interview process and references contacted.</p>
-
-        <div class="form-group">
-          <label for="interviewDates">Date of Interview <span class="required">*</span></label>
-          <input type="date" id="interviewDates" required>
-          <span class="field-error" id="interviewDatesError"></span>
+        <div id="teacherTableView">
+          <h2>Teachers</h2>
+          <p class="step-description">Add each teacher's recruitment details. You must add at least one teacher to continue.</p>
+          <div id="teacherTableContainer"></div>
+          <div class="add-teacher-actions">
+            <button type="button" id="addTeacherBtn" class="btn-primary">+ Add Teacher</button>
+          </div>
+          <span class="field-error" id="teacherTableError"></span>
         </div>
 
-        <div class="form-row form-row-3">
-          <div class="form-group">
-            <label for="interviewPlace">Place of Interview <span class="required">*</span></label>
-            <input type="text" id="interviewPlace" placeholder="e.g., Paris" required>
-            <span class="field-error" id="interviewPlaceError"></span>
+        <div id="teacherFormView" style="display: none;">
+          <div class="form-view-header">
+            <button type="button" id="backToListBtn" class="btn-secondary btn-sm">← Back to list</button>
+            <h2 id="teacherFormTitle">Add Teacher</h2>
           </div>
-          <div class="form-group">
-            <label for="interviewCountry">Country <span class="required">*</span></label>
-            <input type="text" id="interviewCountry" list="countryList" placeholder="e.g., France" required>
-            <span class="field-error" id="interviewCountryError"></span>
-          </div>
-          <div class="form-group">
-            <label for="interviewPlatform">Platform <span class="required">*</span></label>
-            <input type="text" id="interviewPlatform" list="platformList" placeholder="e.g., Zoom" required>
-            <span class="field-error" id="interviewPlatformError"></span>
-          </div>
-        </div>
 
-        <datalist id="countryList">
-          <option value="Argentina">
-          <option value="Brazil">
-          <option value="Canada">
-          <option value="Chile">
-          <option value="China">
-          <option value="Colombia">
-          <option value="Costa Rica">
-          <option value="Dominican Republic">
-          <option value="Ecuador">
-          <option value="France">
-          <option value="Germany">
-          <option value="India">
-          <option value="Italy">
-          <option value="Japan">
-          <option value="Mexico">
-          <option value="Peru">
-          <option value="Philippines">
-          <option value="South Korea">
-          <option value="Spain">
-          <option value="Turkey">
-          <option value="United Kingdom">
-          <option value="United States">
-          <option value="Venezuela">
-        </datalist>
-
-        <datalist id="platformList">
-          <option value="Zoom">
-          <option value="Microsoft Teams">
-          <option value="Google Meet">
-          <option value="Skype">
-          <option value="Phone">
-          <option value="WhatsApp">
-          <option value="In Person">
-          <option value="FaceTime">
-          <option value="Email">
-        </datalist>
-
-        <div class="form-group">
-          <label for="interviewLength">Length of Time Spent <span class="required">*</span></label>
-          <input type="text" id="interviewLength" placeholder="e.g., 45 minutes" required>
-          <span class="field-error" id="interviewLengthError"></span>
-        </div>
-
-        <div class="form-group">
-          <label for="communicationDetails">Communication Details <span class="required">*</span></label>
-          <textarea id="communicationDetails" rows="3" placeholder="Include time and method of communication with the date (via email, phone, Skype, etc.)" required></textarea>
-          <span class="field-error" id="communicationError"></span>
-        </div>
-
-        <h3 class="section-subheading">References (minimum 2)</h3>
-        <p class="field-hint">Names, titles, email addresses of former employers contacted.</p>
-
-        <div id="referencesContainer">
-          <!-- References rendered by JS -->
-        </div>
-
-        <button type="button" id="addReferenceBtn" class="btn-secondary">+ Add Reference</button>
-        <span class="field-error" id="referencesError"></span>
-      </section>
-
-      <!-- Step 3: English Assessment -->
-      <section class="wizard-step" data-step="3">
-        <h2>English Test</h2>
-        <p class="step-description">Required by J-1 visa regulations.</p>
-
-        <h3 class="section-subheading">Verbal Assessment</h3>
-
-        <div class="toggle-group">
-          <label class="toggle-label">Was the teacher's English tested verbally?</label>
-          <div class="toggle-switch-container">
-            <label class="toggle-switch">
-              <input type="checkbox" id="verbalTested">
-              <span class="toggle-slider"></span>
-            </label>
-            <span class="toggle-state" id="verbalTestedLabel">No</span>
-          </div>
-        </div>
-
-        <div class="conditional-fields" id="verbalFields" style="display: none;">
-          <div class="form-group">
-            <label for="verbalDate">Date of verbal test</label>
-            <input type="text" id="verbalDate" placeholder="e.g., March 15, 2025">
-          </div>
-          <div class="form-group">
-            <label for="verbalAssessment">Assessment of ability</label>
-            <textarea id="verbalAssessment" rows="2" placeholder="Describe the teacher's verbal English ability..."></textarea>
-          </div>
-          <div class="toggle-group">
-            <label class="toggle-label">Was the test conducted by a native speaker of English?</label>
-            <div class="toggle-switch-container">
-              <label class="toggle-switch">
-                <input type="checkbox" id="verbalByNativeSpeaker">
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="toggle-state" id="verbalByNativeSpeakerLabel">No</span>
-            </div>
-          </div>
-        </div>
-
-        <h3 class="section-subheading">Written Assessment</h3>
-        <p class="field-hint">The State Dept. requires that the teacher upload a written test of English comprehension unless they are a native speaker of English.</p>
-
-        <div class="toggle-group">
-          <label class="toggle-label">Was a written English test administered?</label>
-          <div class="toggle-switch-container">
-            <label class="toggle-switch">
-              <input type="checkbox" id="writtenTested">
-              <span class="toggle-slider"></span>
-            </label>
-            <span class="toggle-state" id="writtenTestedLabel">No</span>
-          </div>
-        </div>
-
-        <div class="conditional-fields" id="writtenFields" style="display: none;">
-          <div class="form-group">
-            <label for="writtenNotes">Notes about written test</label>
-            <textarea id="writtenNotes" rows="2" placeholder="Details about the written assessment..."></textarea>
-          </div>
-        </div>
-      </section>
-
-      <!-- Step 4: Arrival Services -->
-      <section class="wizard-step" data-step="4">
-        <h2>Arrival Services</h2>
-        <p class="step-description">What services do you provide to teachers when they first arrive in the US?</p>
-        <p class="field-hint">Review required assistance at www.cordell-hull.org/host-school-responsibilities</p>
-
-        <div class="service-item">
-          <div class="toggle-group">
-            <label class="toggle-label">Meet at airport</label>
-            <div class="toggle-switch-container">
-              <label class="toggle-switch">
-                <input type="checkbox" class="service-toggle" data-service="meetAtAirport">
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="toggle-state">No</span>
-            </div>
-          </div>
-          <div class="service-details" style="display: none;">
-            <input type="text" class="service-detail-input" data-service="meetAtAirport" placeholder="Details...">
-          </div>
-        </div>
-
-        <div class="service-item">
-          <div class="toggle-group">
-            <label class="toggle-label">Find a host family for the first two weeks</label>
-            <div class="toggle-switch-container">
-              <label class="toggle-switch">
-                <input type="checkbox" class="service-toggle" data-service="hostFamily">
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="toggle-state">No</span>
-            </div>
-          </div>
-          <div class="service-details" style="display: none;">
-            <input type="text" class="service-detail-input" data-service="hostFamily" placeholder="Details...">
-          </div>
-        </div>
-
-        <div class="service-item">
-          <div class="toggle-group">
-            <label class="toggle-label">Arrange transient hotel for the first two weeks</label>
-            <div class="toggle-switch-container">
-              <label class="toggle-switch">
-                <input type="checkbox" class="service-toggle" data-service="transientHotel">
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="toggle-state">No</span>
-            </div>
-          </div>
-          <div class="service-details" style="display: none;">
-            <input type="text" class="service-detail-input" data-service="transientHotel" placeholder="Details...">
-          </div>
-        </div>
-
-        <div class="service-item">
-          <div class="toggle-group">
-            <label class="toggle-label">Rent a car for the first two weeks</label>
-            <div class="toggle-switch-container">
-              <label class="toggle-switch">
-                <input type="checkbox" class="service-toggle" data-service="rentalCar">
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="toggle-state">No</span>
-            </div>
-          </div>
-          <div class="service-details" style="display: none;">
-            <input type="text" class="service-detail-input" data-service="rentalCar" placeholder="Details...">
-          </div>
-        </div>
-
-        <div class="service-item">
-          <div class="toggle-group">
-            <label class="toggle-label">Help find a place to live and furnish the apartment</label>
-            <div class="toggle-switch-container">
-              <label class="toggle-switch">
-                <input type="checkbox" class="service-toggle" data-service="housingAssistance">
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="toggle-state">No</span>
-            </div>
-          </div>
-          <div class="service-details" style="display: none;">
-            <input type="text" class="service-detail-input" data-service="housingAssistance" placeholder="Details...">
-          </div>
-        </div>
-
-        <div class="service-item">
-          <div class="toggle-group">
-            <label class="toggle-label">Help apply for Social Security card and accompany to office</label>
-            <div class="toggle-switch-container">
-              <label class="toggle-switch">
-                <input type="checkbox" class="service-toggle" data-service="socialSecurity">
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="toggle-state">No</span>
-            </div>
-          </div>
-          <div class="service-details" style="display: none;">
-            <input type="text" class="service-detail-input" data-service="socialSecurity" placeholder="Details...">
-          </div>
-        </div>
-      </section>
-
-      <!-- Step 5: Certification & Additional -->
-      <section class="wizard-step" data-step="5">
-        <h2>Certification & Additional Information</h2>
-        <p class="step-description">Certification procedures and any additional information about the recruitment.</p>
-
-        <div class="form-group">
-          <label for="certProcedures">Certification/licensure procedures and costs at your school</label>
-          <p class="field-hint">If public or charter school</p>
-          <textarea id="certProcedures" rows="3" placeholder="Describe the certification procedures and costs..."></textarea>
-        </div>
-
-        <div class="form-group">
-          <label for="certSteps">Steps to obtain teacher certification in your state</label>
-          <p class="field-hint">If public or charter school</p>
-          <textarea id="certSteps" rows="3" placeholder="Describe the steps required..."></textarea>
-        </div>
-
-        <div class="toggle-group">
-          <label class="toggle-label">Is there any cost that the teacher has to incur to become certified?</label>
-          <div class="toggle-switch-container">
-            <label class="toggle-switch">
-              <input type="checkbox" id="teacherCostToggle">
-              <span class="toggle-slider"></span>
-            </label>
-            <span class="toggle-state" id="teacherCostLabel">No</span>
-          </div>
-        </div>
-
-        <div class="conditional-fields" id="certCostFields" style="display: none;">
+          <h3 class="section-subheading">Teacher</h3>
           <div class="form-row">
-            <div class="form-group">
-              <label for="costAmount">Approximate cost</label>
-              <input type="text" id="costAmount" placeholder="e.g., $200">
-            </div>
-            <div class="form-group">
-              <label for="costTiming">When do they pay?</label>
-              <select id="costTiming">
-                <option value="">Select...</option>
-                <option value="advance">Pay in advance</option>
-                <option value="after_arrival">Pay after arrival in the US</option>
-              </select>
+            <div class="form-group"><label for="teacherFirstName">First Name <span class="required">*</span></label><input type="text" id="teacherFirstName" placeholder="First name" required><span class="field-error" id="teacherFirstNameError"></span></div>
+            <div class="form-group"><label for="teacherLastName">Last Name <span class="required">*</span></label><input type="text" id="teacherLastName" placeholder="Last name" required><span class="field-error" id="teacherLastNameError"></span></div>
+          </div>
+          <div class="form-group"><label for="teacherEmail">Email Address <span class="required">*</span></label><input type="email" id="teacherEmail" placeholder="teacher@example.com" required><span class="field-error" id="teacherEmailError"></span></div>
+
+          <h3 class="section-subheading">Interview Details</h3>
+          <div class="form-row">
+            <div class="form-group"><label for="interviewDate">Date of Interview <span class="required">*</span></label><input type="date" id="interviewDate" required><span class="field-error" id="interviewDateError"></span></div>
+            <div class="form-group"><label for="interviewLength">Length of Interview <span class="required">*</span></label><input type="text" id="interviewLength" placeholder="e.g., 45 minutes" required><span class="field-error" id="interviewLengthError"></span></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label for="interviewPlace">Place of Interview <span class="required">*</span></label><input type="text" id="interviewPlace" placeholder="e.g., Paris / your school" required><span class="field-error" id="interviewPlaceError"></span></div>
+            <div class="form-group"><label for="interviewCountry">Country <span class="required">*</span></label><input type="text" id="interviewCountry" list="countryList" placeholder="e.g., France" required><span class="field-error" id="interviewCountryError"></span></div>
+          </div>
+
+          <h3 class="section-subheading">Communication Venue</h3>
+          <p class="field-hint">Select all that apply.</p>
+          <div class="checkbox-group" id="teacherVenues">
+            <label class="checkbox-item"><input type="checkbox" value="telephone"> Telephone</label>
+            <label class="checkbox-item"><input type="checkbox" value="email"> Email</label>
+            <label class="checkbox-item"><input type="checkbox" value="zoom"> Zoom</label>
+            <label class="checkbox-item"><input type="checkbox" value="inPerson"> In Person</label>
+            <label class="checkbox-item"><input type="checkbox" value="letter"> Letter</label>
+            <label class="checkbox-item"><input type="checkbox" value="other"> Other</label>
+          </div>
+          <div class="conditional-fields" id="teacherOtherField" style="display: none;">
+            <div class="form-group"><label for="teacherOtherVenue">Please specify</label><textarea id="teacherOtherVenue" rows="2" placeholder="Describe other communication method..."></textarea></div>
+          </div>
+          <span class="field-error" id="teacherVenuesError"></span>
+
+          <h3 class="section-subheading">References</h3>
+          <p class="field-hint">Note: 2 reference checks are required, preferably at least one with the current or most recent supervisor.</p>
+
+          <div class="reference-card">
+            <div class="reference-header"><span class="reference-number">Reference #1</span></div>
+            <div class="reference-fields">
+              <div class="form-row">
+                <div class="form-group"><label for="ref1Name">Name <span class="required">*</span></label><input type="text" id="ref1Name" placeholder="Full name" required></div>
+                <div class="form-group"><label for="ref1Title">Position Title</label><input type="text" id="ref1Title" placeholder="Position title"></div>
+              </div>
+              <div class="form-group"><label for="ref1Email">Email <span class="required">*</span></label><input type="email" id="ref1Email" placeholder="email@example.com" required></div>
+              <div class="form-row">
+                <div class="form-group"><label for="ref1Date">Date of Interview</label><input type="date" id="ref1Date"></div>
+                <div class="form-group"><label for="ref1Length">Length of Interview</label><input type="text" id="ref1Length" placeholder="e.g., 20 minutes"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label for="ref1Place">Place of Interview</label><input type="text" id="ref1Place" placeholder="e.g., Paris / your school"></div>
+                <div class="form-group"><label for="ref1Country">Country</label><input type="text" id="ref1Country" list="countryList" placeholder="e.g., France"></div>
+              </div>
+              <h4 class="section-subheading-sm">Communication Venue</h4>
+              <div class="checkbox-group" id="ref1Venues">
+                <label class="checkbox-item"><input type="checkbox" value="telephone"> Telephone</label>
+                <label class="checkbox-item"><input type="checkbox" value="email"> Email</label>
+                <label class="checkbox-item"><input type="checkbox" value="zoom"> Zoom</label>
+                <label class="checkbox-item"><input type="checkbox" value="inPerson"> In Person</label>
+                <label class="checkbox-item"><input type="checkbox" value="letter"> Letter</label>
+                <label class="checkbox-item"><input type="checkbox" value="other"> Other</label>
+              </div>
+              <div class="conditional-fields" id="ref1OtherField" style="display: none;">
+                <div class="form-group"><label for="ref1OtherVenue">Please specify</label><textarea id="ref1OtherVenue" rows="2"></textarea></div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <h3 class="section-subheading">Native English Speaker</h3>
-
-        <div class="toggle-group">
-          <label class="toggle-label">Are you hiring a native English speaker?</label>
-          <div class="toggle-switch-container">
-            <label class="toggle-switch">
-              <input type="checkbox" id="nativeEnglishToggle">
-              <span class="toggle-slider"></span>
-            </label>
-            <span class="toggle-state" id="nativeEnglishLabel">No</span>
+          <div class="reference-card">
+            <div class="reference-header"><span class="reference-number">Reference #2</span></div>
+            <div class="reference-fields">
+              <div class="form-row">
+                <div class="form-group"><label for="ref2Name">Name <span class="required">*</span></label><input type="text" id="ref2Name" placeholder="Full name" required></div>
+                <div class="form-group"><label for="ref2Title">Position Title</label><input type="text" id="ref2Title" placeholder="Position title"></div>
+              </div>
+              <div class="form-group"><label for="ref2Email">Email <span class="required">*</span></label><input type="email" id="ref2Email" placeholder="email@example.com" required></div>
+              <div class="form-row">
+                <div class="form-group"><label for="ref2Date">Date of Interview</label><input type="date" id="ref2Date"></div>
+                <div class="form-group"><label for="ref2Length">Length of Interview</label><input type="text" id="ref2Length" placeholder="e.g., 20 minutes"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label for="ref2Place">Place of Interview</label><input type="text" id="ref2Place" placeholder="e.g., Paris / your school"></div>
+                <div class="form-group"><label for="ref2Country">Country</label><input type="text" id="ref2Country" list="countryList" placeholder="e.g., France"></div>
+              </div>
+              <h4 class="section-subheading-sm">Communication Venue</h4>
+              <div class="checkbox-group" id="ref2Venues">
+                <label class="checkbox-item"><input type="checkbox" value="telephone"> Telephone</label>
+                <label class="checkbox-item"><input type="checkbox" value="email"> Email</label>
+                <label class="checkbox-item"><input type="checkbox" value="zoom"> Zoom</label>
+                <label class="checkbox-item"><input type="checkbox" value="inPerson"> In Person</label>
+                <label class="checkbox-item"><input type="checkbox" value="letter"> Letter</label>
+                <label class="checkbox-item"><input type="checkbox" value="other"> Other</label>
+              </div>
+              <div class="conditional-fields" id="ref2OtherField" style="display: none;">
+                <div class="form-group"><label for="ref2OtherVenue">Please specify</label><textarea id="ref2OtherVenue" rows="2"></textarea></div>
+              </div>
+            </div>
           </div>
-        </div>
+          <span class="field-error" id="referencesError"></span>
 
-        <div class="conditional-fields" id="nativeEnglishFields" style="display: none;">
-          <div class="form-group">
-            <label for="nativeJustification">Justification <span class="required">*</span></label>
-            <p class="field-hint">Specify what steps you took to find a qualified American teacher, and why you must bring in a foreign teacher.</p>
-            <textarea id="nativeJustification" rows="4" placeholder="Describe the steps taken and reasons..."></textarea>
-            <span class="field-error" id="justificationError"></span>
+          <h3 class="section-subheading">English Assessment</h3>
+          <div class="toggle-group">
+            <label class="toggle-label">Is this teacher a native English speaker?</label>
+            <div class="toggle-switch-container"><label class="toggle-switch"><input type="checkbox" id="nativeEnglishToggle"><span class="toggle-slider"></span></label><span class="toggle-state" id="nativeEnglishLabel">No</span></div>
+          </div>
+          <div id="nonNativeFields">
+            <div class="toggle-group">
+              <label class="toggle-label">Did a native English speaker test the English-speaking ability of the teacher in the interview process?</label>
+              <div class="toggle-switch-container"><label class="toggle-switch"><input type="checkbox" id="nativeTestedToggle"><span class="toggle-slider"></span></label><span class="toggle-state" id="nativeTestedLabel">No</span></div>
+            </div>
+            <div class="form-group">
+              <label for="englishTestMinutes">For what period of time did you interview the teacher in English and test his/her English fluency?</label>
+              <select id="englishTestMinutes"><option value="">Select duration...</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="120">120 minutes</option><option value="longer">Longer</option></select>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="saveTeacherBtn" class="btn-primary">Save Teacher</button>
+            <button type="button" id="cancelTeacherBtn" class="btn-secondary">Cancel</button>
           </div>
         </div>
       </section>
 
-      <!-- Step 6: Signature -->
-      <section class="wizard-step" data-step="6">
+      <!-- Step 3: Services & Certification -->
+      <section class="wizard-step" data-step="3">
+        <h2>Services & Certification</h2>
+        <p class="step-description">These sections apply to all teachers in the report.</p>
+
+        <h3 class="section-subheading">Relocation Services</h3>
+        <p class="field-hint">Review suggested or required assistance at <a href="http://www.cordell-hull.org/host-school-responsibilities" target="_blank">www.cordell-hull.org/host-school-responsibilities</a>. If you hired a company to provide relocation services, enter the details below.</p>
+        <div class="form-group"><label for="relocationName">Name of Company</label><input type="text" id="relocationName" placeholder="N/A"></div>
+        <div class="form-group"><label for="relocationEmail">Contact Email for Company</label><input type="text" id="relocationEmail" placeholder="N/A"></div>
+
+        <h3 class="section-subheading">Certification Procedures</h3>
+        <div class="form-group"><label for="certLink">Link for certification procedures and licensure at your school</label><input type="text" id="certLink" placeholder="N/A"></div>
+        <div class="form-group"><label for="certCost">Cost to teacher to become certified</label><input type="text" id="certCost" placeholder="N/A (private school)"></div>
+      </section>
+
+      <!-- Step 4: Signature -->
+      <section class="wizard-step" data-step="4">
         <h2>Signature</h2>
-        <p class="step-description">Sign and confirm you are conducting the background check.</p>
+        <p class="step-description">Sign and certify that you were responsible for recruitment and that the teachers speak English fluently.</p>
 
         <div class="form-group">
           <label>Digital Signature <span class="required">*</span></label>
@@ -422,41 +266,24 @@
           </div>
           <span class="field-error" id="signatureError"></span>
         </div>
-
         <div class="form-row">
-          <div class="form-group">
-            <label for="signerName">Full Name <span class="required">*</span></label>
-            <input type="text" id="signerName" placeholder="Person signing and conducting background check" required>
-            <span class="field-error" id="signerNameError"></span>
-          </div>
-          <div class="form-group">
-            <label for="signerTitle">Position Title <span class="required">*</span></label>
-            <input type="text" id="signerTitle" placeholder="e.g., Principal, Director" required>
-            <span class="field-error" id="signerTitleError"></span>
-          </div>
+          <div class="form-group"><label for="signerName">Full Name <span class="required">*</span></label><input type="text" id="signerName" placeholder="Full name" required><span class="field-error" id="signerNameError"></span></div>
+          <div class="form-group"><label for="signerTitle">Position Title <span class="required">*</span></label><input type="text" id="signerTitle" placeholder="e.g., Principal, Director" required><span class="field-error" id="signerTitleError"></span></div>
         </div>
       </section>
 
-      <!-- Step 7: Review -->
-      <section class="wizard-step" data-step="7">
+      <!-- Step 5: Review -->
+      <section class="wizard-step" data-step="5">
         <h2>Review Your Report</h2>
         <p class="step-description">Please review all information before generating the PDF.</p>
-
-        <div class="review-container" id="reviewContainer">
-          <!-- Rendered by JS -->
-        </div>
-
+        <div class="review-container" id="reviewContainer"></div>
         <div class="generate-section">
-          <button type="button" id="generatePdfBtn" class="btn-primary btn-large">
-            <span class="btn-icon">📄</span>
-            Generate PDF Report
-          </button>
+          <button type="button" id="generatePdfBtn" class="btn-primary btn-large">Generate PDF Report</button>
         </div>
-
       </section>
     </main>
 
-    <footer class="wizard-navigation">
+    <footer class="wizard-navigation" id="wizardNavigation" style="display: none;">
       <button type="button" id="prevBtn" class="btn-secondary" style="visibility: hidden;">← Back</button>
       <button type="button" id="nextBtn" class="btn-primary">Next →</button>
     </footer>
@@ -464,62 +291,19 @@
     <div class="app-version" id="appVersion"></div>
   </div>
 
-  <!-- Reference template -->
-  <template id="referenceTemplate">
-    <div class="reference-card" data-ref-index="">
-      <div class="reference-header">
-        <span class="reference-number"></span>
-        <button type="button" class="btn-icon-only btn-remove-ref" title="Remove">✕</button>
-      </div>
-      <div class="reference-fields">
-        <div class="form-row">
-          <div class="form-group">
-            <label>Name <span class="required">*</span></label>
-            <input type="text" class="ref-name" placeholder="Full name">
-          </div>
-          <div class="form-group">
-            <label>Title</label>
-            <input type="text" class="ref-title" placeholder="Position title">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Email <span class="required">*</span></label>
-          <input type="email" class="ref-email" placeholder="email@example.com">
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Date Contacted</label>
-            <input type="date" class="ref-date">
-          </div>
-          <div class="form-group">
-            <label>Platform</label>
-            <input type="text" class="ref-platform" placeholder="e.g., Zoom, Email, Phone">
-          </div>
-        </div>
-      </div>
-    </div>
-  </template>
+  <datalist id="countryList">
+    <option value="Argentina"><option value="Brazil"><option value="Canada"><option value="Chile">
+    <option value="China"><option value="Colombia"><option value="Costa Rica"><option value="Dominican Republic">
+    <option value="Ecuador"><option value="France"><option value="Germany"><option value="India">
+    <option value="Italy"><option value="Japan"><option value="Mexico"><option value="Peru">
+    <option value="Philippines"><option value="South Korea"><option value="Spain"><option value="Turkey">
+    <option value="United Kingdom"><option value="United States"><option value="Venezuela">
+  </datalist>
 
-  <!-- Generating overlay -->
   <div class="progress-overlay" id="generatingOverlay" style="display: none;">
-    <div class="progress-modal">
-      <span class="spinner large"></span>
-      <p id="generatingStatus">Generating PDF...</p>
-    </div>
+    <div class="progress-modal"><span class="spinner large"></span><p id="generatingStatus">Generating PDF...</p></div>
   </div>
 
-  <!-- Draft restore modal -->
-  <div class="progress-overlay" id="draftBanner" style="display: none;">
-    <div class="progress-modal draft-modal">
-      <p class="draft-modal-title">Resume your draft?</p>
-      <p class="draft-modal-text">You have an unsaved draft from <span id="draftDate"></span>.</p>
-      <div class="draft-modal-actions">
-        <button type="button" class="btn-primary" id="draftResumeBtn">Resume</button>
-        <button type="button" class="btn-secondary" id="draftDiscardBtn">Start fresh</button>
-      </div>
-    </div>
-  </div>
-
-  <script type="module" src="main.js?v=1.1.0"></script>
+<script type="module" src="main.js?v=2.0.1"></script>
 </body>
 </html>
