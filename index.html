@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recruiting Report - Cordell Hull Foundation</title>
   <link rel="icon" type="image/jpeg" href="./assets/logo.jpeg">
-  <link rel="stylesheet" href="styles.css?v=2.0.1">
+  <link rel="stylesheet" href="styles.css?v=2.0.2">
 </head>
 <body>
   <div class="app-container">
@@ -130,8 +130,8 @@
             <div class="form-group"><label for="interviewLength">Length of Interview <span class="required">*</span></label><input type="text" id="interviewLength" placeholder="e.g., 45 minutes" required><span class="field-error" id="interviewLengthError"></span></div>
           </div>
           <div class="form-row">
-            <div class="form-group"><label for="interviewPlace">Place of Interview <span class="required">*</span></label><input type="text" id="interviewPlace" placeholder="e.g., Paris / your school" required><span class="field-error" id="interviewPlaceError"></span></div>
-            <div class="form-group"><label for="interviewCountry">Country <span class="required">*</span></label><input type="text" id="interviewCountry" list="countryList" placeholder="e.g., France" required><span class="field-error" id="interviewCountryError"></span></div>
+            <div class="form-group"><label for="interviewPlace">Place of Interview <span class="required">*</span></label><input type="text" id="interviewPlace" placeholder="e.g., Zoom, Paris, your school" list="placeList" required><span class="field-error" id="interviewPlaceError"></span></div>
+            <div class="form-group"><label for="interviewCountry">Country of Teacher's Citizenship <span class="required">*</span></label><input type="text" id="interviewCountry" list="countryList" placeholder="e.g., France" required><span class="field-error" id="interviewCountryError"></span></div>
           </div>
 
           <h3 class="section-subheading">Communication Venue</h3>
@@ -162,11 +162,11 @@
               <div class="form-group"><label for="ref1Email">Email <span class="required">*</span></label><input type="email" id="ref1Email" placeholder="email@example.com" required></div>
               <div class="form-row">
                 <div class="form-group"><label for="ref1Date">Date of Interview</label><input type="date" id="ref1Date"></div>
-                <div class="form-group"><label for="ref1Length">Length of Interview</label><input type="text" id="ref1Length" placeholder="e.g., 20 minutes"></div>
+                <div class="form-group"><label for="ref1Length">Length of Interview</label><input type="text" id="ref1Length" placeholder="e.g., 45 minutes"></div>
               </div>
               <div class="form-row">
-                <div class="form-group"><label for="ref1Place">Place of Interview</label><input type="text" id="ref1Place" placeholder="e.g., Paris / your school"></div>
-                <div class="form-group"><label for="ref1Country">Country</label><input type="text" id="ref1Country" list="countryList" placeholder="e.g., France"></div>
+                <div class="form-group"><label for="ref1Place">Place of Interview</label><input type="text" id="ref1Place" placeholder="e.g., Zoom, Paris, your school" list="placeList"></div>
+                <div class="form-group"><label for="ref1Country">Country of Teacher's Citizenship</label><input type="text" id="ref1Country" list="countryList" placeholder="e.g., France"></div>
               </div>
               <h4 class="section-subheading-sm">Communication Venue</h4>
               <div class="checkbox-group" id="ref1Venues">
@@ -193,11 +193,11 @@
               <div class="form-group"><label for="ref2Email">Email <span class="required">*</span></label><input type="email" id="ref2Email" placeholder="email@example.com" required></div>
               <div class="form-row">
                 <div class="form-group"><label for="ref2Date">Date of Interview</label><input type="date" id="ref2Date"></div>
-                <div class="form-group"><label for="ref2Length">Length of Interview</label><input type="text" id="ref2Length" placeholder="e.g., 20 minutes"></div>
+                <div class="form-group"><label for="ref2Length">Length of Interview</label><input type="text" id="ref2Length" placeholder="e.g., 45 minutes"></div>
               </div>
               <div class="form-row">
-                <div class="form-group"><label for="ref2Place">Place of Interview</label><input type="text" id="ref2Place" placeholder="e.g., Paris / your school"></div>
-                <div class="form-group"><label for="ref2Country">Country</label><input type="text" id="ref2Country" list="countryList" placeholder="e.g., France"></div>
+                <div class="form-group"><label for="ref2Place">Place of Interview</label><input type="text" id="ref2Place" placeholder="e.g., Zoom, Paris, your school" list="placeList"></div>
+                <div class="form-group"><label for="ref2Country">Country of Teacher's Citizenship</label><input type="text" id="ref2Country" list="countryList" placeholder="e.g., France"></div>
               </div>
               <h4 class="section-subheading-sm">Communication Venue</h4>
               <div class="checkbox-group" id="ref2Venues">
@@ -221,6 +221,7 @@
             <div class="toggle-switch-container"><label class="toggle-switch"><input type="checkbox" id="nativeEnglishToggle"><span class="toggle-slider"></span></label><span class="toggle-state" id="nativeEnglishLabel">No</span></div>
           </div>
           <div id="nonNativeFields">
+            <p class="field-hint">The following questions apply only to non-native English speakers. If the teacher is a native English speaker, toggle the switch above to "Yes" and these questions will not apply.</p>
             <div class="toggle-group">
               <label class="toggle-label">Did a native English speaker test the English-speaking ability of the teacher in the interview process?</label>
               <div class="toggle-switch-container"><label class="toggle-switch"><input type="checkbox" id="nativeTestedToggle"><span class="toggle-slider"></span></label><span class="toggle-state" id="nativeTestedLabel">No</span></div>
@@ -291,6 +292,15 @@
     <div class="app-version" id="appVersion"></div>
   </div>
 
+  <datalist id="placeList">
+    <option value="Zoom">
+    <option value="Microsoft Teams">
+    <option value="Google Meet">
+    <option value="Skype">
+    <option value="Phone">
+    <option value="School campus">
+  </datalist>
+
   <datalist id="countryList">
     <option value="Argentina"><option value="Brazil"><option value="Canada"><option value="Chile">
     <option value="China"><option value="Colombia"><option value="Costa Rica"><option value="Dominican Republic">
@@ -304,6 +314,6 @@
     <div class="progress-modal"><span class="spinner large"></span><p id="generatingStatus">Generating PDF...</p></div>
   </div>
 
-<script type="module" src="main.js?v=2.0.1"></script>
+<script type="module" src="main.js?v=2.0.2"></script>
 </body>
 </html>
