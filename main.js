@@ -7,6 +7,7 @@ import { APP_VERSION } from './config/version.js';
 
 const TOTAL_STEPS = 5;
 const STORAGE_KEY = 'chf-recruitment-data';
+const SHARED_SCHOOL_KEY = 'chf-school-info';
 
 const VENUE_OPTIONS = [
   { value: 'telephone', label: 'Telephone' },
@@ -64,6 +65,12 @@ let wasAddingNew = false; // tracks whether current form session started as "Add
 function _saveToStorage() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(report));
+    localStorage.setItem(SHARED_SCHOOL_KEY, JSON.stringify({
+      schoolName: report.schoolName,
+      contactFirstName: report.schoolContactFirstName,
+      contactLastName: report.schoolContactLastName,
+      contactEmail: report.schoolContactEmail
+    }));
   } catch {}
 }
 
@@ -213,6 +220,17 @@ function _startFresh() {
   report.certification = { link: '', costToTeacher: '' };
   report.signature = { imageDataUrl: null, signerName: '', signerTitle: '' };
   report.date = new Date().toISOString().split('T')[0];
+
+  // Pre-fill school info from shared storage if available
+  try {
+    const shared = JSON.parse(localStorage.getItem(SHARED_SCHOOL_KEY));
+    if (shared && shared.schoolName) {
+      report.schoolName = shared.schoolName;
+      report.schoolContactFirstName = shared.contactFirstName || '';
+      report.schoolContactLastName = shared.contactLastName || '';
+      report.schoolContactEmail = shared.contactEmail || '';
+    }
+  } catch {}
 
   _restoreAllFields();
   _showWizard();
