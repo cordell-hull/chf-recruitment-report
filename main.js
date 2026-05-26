@@ -86,7 +86,14 @@ function _loadFromStorage() {
     report.schoolContactFirstName = saved.schoolContactFirstName || '';
     report.schoolContactLastName = saved.schoolContactLastName || '';
     report.schoolContactEmail = saved.schoolContactEmail || '';
-    report.teachers = saved.teachers || [];
+    report.teachers = (saved.teachers || []).map(t => ({
+      ..._emptyTeacher(),
+      ...t,
+      references: [
+        { ..._emptyReference(), ...(t.references?.[0] || {}) },
+        { ..._emptyReference(), ...(t.references?.[1] || {}) }
+      ]
+    }));
     report.relocationCompany = saved.relocationCompany || { name: '', email: '' };
     report.certification = saved.certification || { link: '', costToTeacher: '' };
     report.signature = saved.signature || { imageDataUrl: null, signerName: '', signerTitle: '' };
