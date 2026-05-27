@@ -286,10 +286,15 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('appVersion').textContent = `v${APP_VERSION}`;
 
   initLanding();
-  setInterval(() => { _syncCurrentStep(); _saveToStorage(); }, 30000);
-  window.addEventListener('beforeunload', () => { _syncCurrentStep(); _saveToStorage(); });
+  const _autoSave = () => {
+    if (document.getElementById('wizardContent').style.display === 'none') return;
+    _syncCurrentStep();
+    _saveToStorage();
+  };
+  setInterval(_autoSave, 30000);
+  window.addEventListener('beforeunload', _autoSave);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') { _syncCurrentStep(); _saveToStorage(); }
+    if (document.visibilityState === 'hidden') _autoSave();
   });
 });
 
