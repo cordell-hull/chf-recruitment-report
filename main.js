@@ -49,7 +49,7 @@ const report = {
   schoolContactLastName: '',
   schoolContactEmail: '',
   teachers: [],
-  relocationCompany: { name: '', email: '' },
+  relocationCompany: { hired: false, name: '', email: '' },
   certification: { link: '', costToTeacher: '' },
   signature: { imageDataUrl: null, signerName: '', signerTitle: '' }
 };
@@ -258,6 +258,9 @@ function _restoreAllFields() {
   document.getElementById('contactFirstName').value = report.schoolContactFirstName;
   document.getElementById('contactLastName').value = report.schoolContactLastName;
   document.getElementById('contactEmail').value = report.schoolContactEmail;
+  document.getElementById('relocationToggle').checked = report.relocationCompany.hired;
+  document.getElementById('relocationFields').style.display = report.relocationCompany.hired ? 'block' : 'none';
+  document.getElementById('relocationToggleLabel').textContent = report.relocationCompany.hired ? 'Yes' : 'No';
   document.getElementById('relocationName').value = report.relocationCompany.name;
   document.getElementById('relocationEmail').value = report.relocationCompany.email;
   document.getElementById('certLink').value = report.certification.link;
@@ -326,6 +329,7 @@ function _syncSchoolFromForm() {
 }
 
 function _syncSharedFromForm() {
+  report.relocationCompany.hired = document.getElementById('relocationToggle').checked;
   report.relocationCompany.name = document.getElementById('relocationName').value.trim();
   report.relocationCompany.email = document.getElementById('relocationEmail').value.trim();
   report.certification.link = document.getElementById('certLink').value.trim();
@@ -593,6 +597,11 @@ function initToggles() {
   document.getElementById('nativeTestedToggle').addEventListener('change', () => {
     _updateToggleState('nativeTestedToggle', 'nativeTestedLabel');
   });
+  document.getElementById('relocationToggle').addEventListener('change', () => {
+    const checked = document.getElementById('relocationToggle').checked;
+    document.getElementById('relocationToggleLabel').textContent = checked ? 'Yes' : 'No';
+    document.getElementById('relocationFields').style.display = checked ? 'block' : 'none';
+  });
 }
 
 // ========================================
@@ -765,6 +774,10 @@ function validateCurrentStep() {
       return _validateSchool();
     }
     case 2: return _validateTeacherList();
+    case 3: {
+      _syncSharedFromForm();
+      return _validateServices();
+    }
     case 4: {
       _captureSignature();
       report.signature.signerName = document.getElementById('signerName').value.trim();
@@ -811,6 +824,17 @@ function _validateTeacherForm(t) {
   if (!refsValid) { showError('referencesError', 'Both references require a name and email.'); valid = false; }
   else clearError('referencesError');
 
+  return valid;
+}
+
+function _validateServices() {
+  let valid = true;
+  if (report.relocationCompany.hired) {
+    if (!report.relocationCompany.name) { showError('relocationNameError', 'Required.'); valid = false; } else clearError('relocationNameError');
+    if (!report.relocationCompany.email) { showError('relocationEmailError', 'Required.'); valid = false; } else clearError('relocationEmailError');
+  }
+  if (!report.certification.link) { showError('certLinkError', 'Required.'); valid = false; } else clearError('certLinkError');
+  if (!report.certification.costToTeacher) { showError('certCostError', 'Required.'); valid = false; } else clearError('certCostError');
   return valid;
 }
 
@@ -899,10 +923,13 @@ function renderReview() {
     ${teacherSections}
     <div class="review-section">
       <h3>Services & Certification</h3>
-      <div class="review-field"><span class="review-label">Relocation Company</span><span class="review-value">${escapeHtml(report.relocationCompany.name || 'N/A')}</span></div>
-      <div class="review-field"><span class="review-label">Company Email</span><span class="review-value">${escapeHtml(report.relocationCompany.email || 'N/A')}</span></div>
-      <div class="review-field"><span class="review-label">Certification Link</span><span class="review-value">${escapeHtml(report.certification.link || 'N/A')}</span></div>
-      <div class="review-field"><span class="review-label">Cost to Teacher</span><span class="review-value">${escapeHtml(report.certification.costToTeacher || 'N/A')}</span></div>
+      <div class="review-field"><span class="review-label">Relocation Company Hired</span><span class="review-value">${report.relocationCompany.hired ? 'Yes' : 'No'}</span></div>
+      ${report.relocationCompany.hired ? `
+        <div class="review-field"><span class="review-label">Company Name</span><span class="review-value">${escapeHtml(report.relocationCompany.name)}</span></div>
+        <div class="review-field"><span class="review-label">Company Email</span><span class="review-value">${escapeHtml(report.relocationCompany.email)}</span></div>
+      ` : ''}
+      <div class="review-field"><span class="review-label">Certification Link</span><span class="review-value">${escapeHtml(report.certification.link)}</span></div>
+      <div class="review-field"><span class="review-label">Cost to Teacher</span><span class="review-value">${escapeHtml(report.certification.costToTeacher)}</span></div>
     </div>
     <div class="review-section">
       <h3>Signature</h3>
