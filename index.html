@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recruiting Report - Cordell Hull Foundation</title>
   <link rel="icon" type="image/jpeg" href="./assets/logo.jpeg">
-  <link rel="stylesheet" href="styles.css?v=2.1.0">
+  <link rel="stylesheet" href="styles.css?v=2.2.0">
 </head>
 <body>
   <div class="app-container">
@@ -263,8 +263,21 @@
         </div>
 
         <h3 class="section-subheading">Certification Procedures</h3>
-        <div class="form-group"><label for="certLink">Link for certification procedures and licensure at your school <span class="required">*</span></label><input type="text" id="certLink" placeholder="N/A" required><span class="field-error" id="certLinkError"></span></div>
-        <div class="form-group"><label for="certCost">Cost to teacher to become certified <span class="required">*</span></label><input type="text" id="certCost" placeholder="N/A (private school)" required><span class="field-error" id="certCostError"></span></div>
+
+        <div class="toggle-group">
+          <label class="toggle-label">Does your school require teacher certification? <span class="field-hint-inline">(Yes for public/charter schools, No for private/religious schools)</span></label>
+          <div class="toggle-switch-container">
+            <label class="toggle-switch">
+              <input type="checkbox" id="certToggle">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-state" id="certToggleLabel">No</span>
+          </div>
+        </div>
+        <div class="conditional-fields" id="certFields" style="display: none;">
+          <div class="form-group"><label for="certLink">Link for certification procedures and licensure at your school <span class="required">*</span></label><input type="text" id="certLink" required><span class="field-error" id="certLinkError"></span></div>
+          <div class="form-group"><label for="certCost">Cost to teacher to become certified <span class="required">*</span></label><input type="text" id="certCost" required><span class="field-error" id="certCostError"></span></div>
+        </div>
       </section>
 
       <!-- Step 4: Signature -->
@@ -327,6 +340,6 @@
     <div class="progress-modal"><span class="spinner large"></span><p id="generatingStatus">Generating PDF...</p></div>
   </div>
 
-<script type="module" src="main.js?v=2.1.0"></script>
+<script type="module" src="main.js?v=2.2.0"></script>
 </body>
 </html>

@@ -50,7 +50,7 @@ const report = {
   schoolContactEmail: '',
   teachers: [],
   relocationCompany: { hired: false, name: '', email: '' },
-  certification: { link: '', costToTeacher: '' },
+  certification: { required: false, link: '', costToTeacher: '' },
   signature: { imageDataUrl: null, signerName: '', signerTitle: '' }
 };
 
@@ -263,6 +263,9 @@ function _restoreAllFields() {
   document.getElementById('relocationToggleLabel').textContent = report.relocationCompany.hired ? 'Yes' : 'No';
   document.getElementById('relocationName').value = report.relocationCompany.name;
   document.getElementById('relocationEmail').value = report.relocationCompany.email;
+  document.getElementById('certToggle').checked = report.certification.required;
+  document.getElementById('certFields').style.display = report.certification.required ? 'block' : 'none';
+  document.getElementById('certToggleLabel').textContent = report.certification.required ? 'Yes' : 'No';
   document.getElementById('certLink').value = report.certification.link;
   document.getElementById('certCost').value = report.certification.costToTeacher;
   document.getElementById('signerName').value = report.signature.signerName;
@@ -332,6 +335,7 @@ function _syncSharedFromForm() {
   report.relocationCompany.hired = document.getElementById('relocationToggle').checked;
   report.relocationCompany.name = document.getElementById('relocationName').value.trim();
   report.relocationCompany.email = document.getElementById('relocationEmail').value.trim();
+  report.certification.required = document.getElementById('certToggle').checked;
   report.certification.link = document.getElementById('certLink').value.trim();
   report.certification.costToTeacher = document.getElementById('certCost').value.trim();
 }
@@ -602,6 +606,11 @@ function initToggles() {
     document.getElementById('relocationToggleLabel').textContent = checked ? 'Yes' : 'No';
     document.getElementById('relocationFields').style.display = checked ? 'block' : 'none';
   });
+  document.getElementById('certToggle').addEventListener('change', () => {
+    const checked = document.getElementById('certToggle').checked;
+    document.getElementById('certToggleLabel').textContent = checked ? 'Yes' : 'No';
+    document.getElementById('certFields').style.display = checked ? 'block' : 'none';
+  });
 }
 
 // ========================================
@@ -833,8 +842,10 @@ function _validateServices() {
     if (!report.relocationCompany.name) { showError('relocationNameError', 'Required.'); valid = false; } else clearError('relocationNameError');
     if (!report.relocationCompany.email) { showError('relocationEmailError', 'Required.'); valid = false; } else clearError('relocationEmailError');
   }
-  if (!report.certification.link) { showError('certLinkError', 'Required.'); valid = false; } else clearError('certLinkError');
-  if (!report.certification.costToTeacher) { showError('certCostError', 'Required.'); valid = false; } else clearError('certCostError');
+  if (report.certification.required) {
+    if (!report.certification.link) { showError('certLinkError', 'Required.'); valid = false; } else clearError('certLinkError');
+    if (!report.certification.costToTeacher) { showError('certCostError', 'Required.'); valid = false; } else clearError('certCostError');
+  }
   return valid;
 }
 
@@ -928,8 +939,11 @@ function renderReview() {
         <div class="review-field"><span class="review-label">Company Name</span><span class="review-value">${escapeHtml(report.relocationCompany.name)}</span></div>
         <div class="review-field"><span class="review-label">Company Email</span><span class="review-value">${escapeHtml(report.relocationCompany.email)}</span></div>
       ` : ''}
-      <div class="review-field"><span class="review-label">Certification Link</span><span class="review-value">${escapeHtml(report.certification.link)}</span></div>
-      <div class="review-field"><span class="review-label">Cost to Teacher</span><span class="review-value">${escapeHtml(report.certification.costToTeacher)}</span></div>
+      <div class="review-field"><span class="review-label">Certification Required</span><span class="review-value">${report.certification.required ? 'Yes (public/charter)' : 'No (private/religious)'}</span></div>
+      ${report.certification.required ? `
+        <div class="review-field"><span class="review-label">Certification Link</span><span class="review-value">${escapeHtml(report.certification.link)}</span></div>
+        <div class="review-field"><span class="review-label">Cost to Teacher</span><span class="review-value">${escapeHtml(report.certification.costToTeacher)}</span></div>
+      ` : ''}
     </div>
     <div class="review-section">
       <h3>Signature</h3>
