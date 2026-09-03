@@ -14,6 +14,17 @@ git cherry-pick 62536b8
 git push -f staging staging/my-change
 gh api -X PUT repos/cordell-hull-staging/chf-recruitment-report/pages \
   -f 'source[branch]=staging/my-change' -f 'source[path]=/'
+gh api -X POST repos/cordell-hull-staging/chf-recruitment-report/pages/builds
+```
+
+Repointing the site does not reliably trigger a rebuild, so request the build explicitly
+with that last call. Otherwise the API reports `"status": "built"` while the old branch is
+still being served — check the build actually ran before trusting the link:
+
+```bash
+gh api repos/cordell-hull-staging/chf-recruitment-report/pages/builds/latest \
+  --jq '.status, .created_at'
+curl -s https://cordell-hull-staging.github.io/chf-recruitment-report/config/version.js
 ```
 
 Link: https://cordell-hull-staging.github.io/chf-recruitment-report/ (~1 min to build).
